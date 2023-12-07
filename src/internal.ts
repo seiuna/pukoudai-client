@@ -64,18 +64,24 @@ export async function CallAPI(client: Client, options: {
             const response = await fetch(root + options.endpoint, Object.assign(requestOptions, {
                 body: formData
             }));
-            logger.debug(`API Response  => ${tid} ` + options.endpoint)
-            const data = await response.json();
-            if (data.message === "认证失败" || data.message === "授权失败") {
-                return Promise.reject("认证失败")
+            logger.debug(`API Response  => ${tid} ` + options.endpoint);
+            let data=undefined;
+            try {
+                data = await response.json();
+                if (data.message === "认证失败" || data.message === "授权失败") {
+                    return Promise.reject("认证失败")
+                }
+                if (options.processResponse) {
+                    return options.processResponse(data);
+                }
+            }catch (err){
+                return Promise.reject("server down")
             }
-            if (options.processResponse) {
-                return options.processResponse(data);
-            }
+
             return data;
         } catch (error) {
             logger.error("API请求失败:", error);
-            throw error;
+            return Promise.reject("API请求失败");
         }
     } else {
         logger.error("API请求失败: ");
@@ -198,6 +204,21 @@ export function MyEventCollect(client: Client): Promise<any> {
     return CallAPI(client, {
         endpoint: "/index.php?act=myEventCollect&mod=Collect&app=api",
         login: true,
+        processResponse: (data) => {
+            return data;
+        },
+    });
+}
+export function EventUsers(client: Client, eventId: StrNum,page:number): Promise<any> {
+    return CallAPI(client, {
+        endpoint: "/index.php?app=api&mod=Event&act=eventUser&",
+        login: true,
+        formData: (function () {
+            const formData = new FormData();
+            formData.append("id", eventId.toString());
+            formData.append("page",page.toString());
+            return formData;
+        })(),
         processResponse: (data) => {
             return data;
         },

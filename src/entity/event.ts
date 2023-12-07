@@ -1,6 +1,6 @@
 import {Clientable} from "./entities";
 
-export class SchoolEvent extends Clientable {
+export class SchoolEvent  {
     id: string = "";
     title: string = "";
     hit: string = "";
@@ -41,12 +41,11 @@ export class SchoolEvent extends Clientable {
     credit_name: string = "";
     tags: Tag[] = []
     area: number = 0;
-    isAllowEvent: number = 0;
-    category: string = "";
-    readonly joinEvent = async () => {
-        return this.client?.joinEvent(this.id);
 
-    }
+    // @ts-ignore
+    isAllowEvent: number ;
+    category!: string;
+
 }
 
 export interface Tag {
@@ -58,7 +57,7 @@ export interface Tag {
 
 // 对应 api
 // https://pocketuni.net/index.php?app=api&mod=Event&act=queryActivityDetailById&from=pc&actiId={}
-export interface EventInfo {
+export interface EventInfo extends Clientable{
     createrId: string;
     actiId: string;
     name: string;

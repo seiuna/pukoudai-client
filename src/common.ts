@@ -51,8 +51,6 @@ const job = scheduleJob('0/1 * * * * *', function () {
             const eventRegTime = Number.parseInt(String(v.event.regStartTimeStr)) * 1000;
             if (time >= eventRegTime) {
                 if (v.bps) {
-
-
                     if (v.client.joinDelay < Date.now()) {
                         v.client.joinEvent(v.event.actiId).then((data) => {
 

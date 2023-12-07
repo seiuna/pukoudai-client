@@ -35,3 +35,19 @@ export interface SchoolInfo {
     // 学分名称
     credit_name: string;
 }
+
+
+export interface EventUser{
+    id: string;
+    uid: string;
+    eventId: string;
+    realname: string;
+    uface: string;
+    checkStatus: number;
+    isVip: number;
+    tags: any[]; // Assuming tags can be an array of any type
+    /**
+    @Description("1:管理员 2:签到员 3:普通成员")
+     */
+    userStatus: number;
+}

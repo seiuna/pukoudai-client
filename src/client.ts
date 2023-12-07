@@ -1,9 +1,9 @@
-import {ClientOption, Filter, StrNum, UserInfo} from "./entity/entities";
+import {ClientOption, Filter, StrNum} from "./entity/entities";
 import {EventInfo, SchoolEvent} from "./entity/event";
 import {
     CancelEvent,
     EventDetail,
-    EventList,
+    EventList, EventUsers,
     JoinEvent,
     Login,
     MSchoolInfo,
@@ -14,8 +14,9 @@ import {
 import {getMTime} from "./utils";
 import {MD5} from 'crypto-js';
 import {getLogger} from "log4js";
-import {SchoolInfo, StudentInfo} from "./entity/user";
+import {EventUser, SchoolInfo, StudentInfo} from "./entity/user";
 import * as Fs from "fs";
+import {filter} from "./o/common";
 
 const logger = getLogger("CLIENT");
 export let baseDir = process.cwd() + "/pu-client";
@@ -36,16 +37,13 @@ export declare class Client {
     //登录
     login(username?: StrNum, password?: StrNum, school?: string): Promise<this>;
 
-    //获取活动列表
-    eventList(keyword: string, page: number): Promise<DataResult<Array<SchoolEvent>>>;
-    //获取活动列表
-    eventList(keyword: string, page: number, filter: Filter): Promise<DataResult<Array<SchoolEvent>>>;
+
+
 
     //加入活动
     joinEvent(eventId: StrNum): Promise<DataResult<string>>;
 
-    //获取活动详情
-    eventInfo(eventId: StrNum): Promise<DataResult<EventInfo>>;
+
 
     //测试当前用户token是否有效
     test(): Promise<void>;
@@ -56,8 +54,33 @@ export declare class Client {
     //更新用户信息
     updateInfo(): Promise<void>;
 
-    // myEventList(eventId:StrNum):Promise<string>;
-    myCollectEventList(filter?: Filter): Promise<Array<SchoolEvent>>;
+    //以下函数都有缓存
+
+    /*
+    获取我的收藏活动列表
+    @Deprecated
+     */
+    myCollectEventList(filter: Filter,cache?:boolean): Promise<DataResult<Array<SchoolEvent>>>;
+    //获取收藏的活动列表
+    collectEventList(filter: Filter,cache?:boolean): Promise<DataResult<Array<SchoolEvent>>>;
+    //获取活动详情
+    eventInfo(eventId: StrNum,cache?:boolean): Promise<DataResult<EventInfo>>;
+    //获取活动列表
+    eventList(keyword: string, page: number, filter: Filter,cache?:boolean): Promise<DataResult<Array<SchoolEvent>>>;
+    /**
+     获取活动用户列表
+     * @param eventId 活动id
+     * @param page 需要多少页的数据 默认获取全部的数据
+     * @param cache
+     */
+    eventUsers(eventId:StrNum,page:number,cache?:boolean): Promise<DataResult<Array<EventUser>>>;
+
+    //获取我的活动列表
+    // myEventList(filter?: Filter): Promise<DataResult<Array<SchoolEvent>>>;
+
+
+
+
 
 }
 
@@ -75,6 +98,7 @@ export class ClientBase implements Client {
         usecache: true
     };
     userdataPath: string | undefined;
+
     async login(username?: StrNum, password?: StrNum, school?: string, qrcodeToken?: string): Promise<this> {
         if (this.processing) {
             return Promise.reject("正在登录中");
@@ -125,6 +149,39 @@ export class ClientBase implements Client {
         }
     }
 
+    async cancelEvent(eventId: StrNum): Promise<DataResult<string>> {
+        return await CancelEvent(this, eventId).then((data) => {
+
+            if (data.msg.includes("用户不存在")) {
+                return {status: true, data: '未加入该活动'};
+            }
+            return {status: true, data: data.msg};
+
+        })
+    }
+
+
+    async test(): Promise<void> {
+        return await MUserInfo(this).catch((e) => {
+            return Promise.reject(e);
+        })
+    }
+
+    async updateInfo(): Promise<void> {
+        try {
+            await MUserInfo(this).then((data: any) => {
+                this.userinfo = Object.assign(data.content, this.userinfo)
+            })
+            await MSchoolInfo(this).then((data: any) => {
+                this.school = data.content.school
+            })
+            this.userdataPath = baseDir + "/userdata/" + `${this.userinfo?.sno}_${this.userinfo?.sid}`;
+            Fs.mkdirSync(this.userdataPath, {recursive: true})
+            Fs.writeFileSync(this.userdataPath + "/userinfo.json", JSON.stringify(this))
+        }catch (e){
+            return Promise.reject(e)}
+    }
+
     async joinEvent(eventId: StrNum): Promise<DataResult<string>> {
         if (Date.now() < this.joinDelay) {
             return {status: false, data: "操作过于频繁，请稍候再试"};
@@ -142,7 +199,7 @@ export class ClientBase implements Client {
         })
     }
 
-    async eventList(keyword: string, page: number, filter: Filter = {}): Promise<DataResult<Array<SchoolEvent>>> {
+    async eventList(keyword: string, page: number, filter: Filter = {},cache:boolean=true): Promise<DataResult<Array<SchoolEvent>>> {
         let rtv:SchoolEvent[]=[];
         let flag=true;
         const time=getMTime()
@@ -160,7 +217,7 @@ export class ClientBase implements Client {
             rtv = rtv.concat(await EventList(this, page, keyword).then((data) => {
                 if(filter){
                     return data.content.filter((v:SchoolEvent)=>{
-                        v.client = this;
+
                         let flag1=true;
                         if(time>=v.eTime){
                             flag=false;
@@ -169,9 +226,9 @@ export class ClientBase implements Client {
                             flag1 = flag1 && v.allow === '0';
                         }
                         if(filter.name){
-                            if(!v.title.includes(filter.name)){
-                                flag1=flag1&&false;
-                            }
+
+                            if(RegExp(filter.name).test(v.title)){
+                                flag1=flag1&&true;}
                         }
                         if(filter.credit){
                             if(v.credit<filter.credit){
@@ -192,49 +249,18 @@ export class ClientBase implements Client {
         return {status: true, data: rtv};
     }
 
-    async cancelEvent(eventId: StrNum): Promise<DataResult<string>> {
-        return await CancelEvent(this, eventId).then((data) => {
-
-            if (data.msg.includes("用户不存在")) {
-                return {status: true, data: '未加入该活动'};
-            }
-            return {status: true, data: data.msg};
-
-        })
-    }
-
-    async eventInfo(eventId: StrNum): Promise<DataResult<EventInfo>> {
+    async eventInfo(eventId: StrNum,cache:boolean=true): Promise<DataResult<EventInfo>> {
 
         return await EventDetail(this, eventId).then((data: any) => {
             return {status: true, data: data.content};
         })
 
     }
-
-    async test(): Promise<void> {
-        return await MUserInfo(this).catch((e) => {
-            return Promise.reject(e);
-        })
-    }
-
-    async updateInfo(): Promise<void> {
-        await MUserInfo(this).then((data: any) => {
-            this.userinfo = Object.assign(data.content, this.userinfo)
-        })
-        await MSchoolInfo(this).then((data: any) => {
-            this.school = data.content.school
-        })
-        this.userdataPath = baseDir + "/userdata/" + `${this.userinfo?.sno}_${this.userinfo?.sid}`;
-        Fs.mkdirSync(this.userdataPath, {recursive: true})
-        Fs.writeFileSync(this.userdataPath + "/userinfo.json", JSON.stringify(this))
-    }
-
-    async myCollectEventList(filter?: Filter): Promise<Array<SchoolEvent>> {
+    async myCollectEventList(filter: Filter={},cache:boolean=true): Promise<DataResult<Array<SchoolEvent>>> {
         return await MyEventCollect(this).then((data) => {
-
             if (filter) {
                 return data.content.filter((v: SchoolEvent) => {
-                    v.client = this;
+
                     let flag1 = true;
 
                     if (filter.allow) {
@@ -262,6 +288,24 @@ export class ClientBase implements Client {
             }
         })
     }
+    async collectEventList(filter: Filter, cache?: boolean): Promise<DataResult<Array<SchoolEvent>>> {
+        return this.myCollectEventList(filter,cache);
+    }
+    async eventUsers(eventId: StrNum, page: number=-1, cache?: boolean): Promise<DataResult<Array<EventUser>>> {
+        const rtv=[];
+        let count=page==-1?1000:page;
+        for (let i = 1; i < count; i++) {
+            const data = await EventUsers(this, eventId,i).then((data: any) => {
+                return data.content;
+            })
+            if(data.length==0){
+                break;
+            }
+            rtv.push(...data);
+        }
+        return {status: true, data: rtv};
+
+    }
 }
 
 export class ClientImp extends ClientBase {
@@ -270,10 +314,14 @@ export class ClientImp extends ClientBase {
         apply: async function (target: any, thisArg: ClientImp, args: Array<any>) {
             const hash = MD5(target.name + JSON.stringify(args)).toString().toLowerCase();
             const data = this.cache.get(hash);
-            if (data !== undefined && getMTime() - data.time < thisArg.options.cacheTime) {
+            if (data !== undefined && getMTime() - data.time < thisArg.options.cacheTime&&args[args.length-1]) {
+                logger.debug("cache hit " + target.name)
                 return data.data;
             } else {
-                logger.debug("cache missing " + target.name)
+                if(args[args.length-1]){
+                    logger.debug("cache miss" + target.name)
+                }
+
                 const rv = target.bind(thisArg)(args[0], args[1], args[2], args[3], args[4], args[5])
                 this.cache.set(hash, {time: getMTime() + thisArg.options.cacheTime, data: rv})
                 return rv;
@@ -286,8 +334,13 @@ export class ClientImp extends ClientBase {
     };
     readonly eventList = this.cacheHandler.withCache(super.eventList);
     readonly eventInfo = this.cacheHandler.withCache(super.eventInfo);
-    readonly myCollectEventList = this.cacheHandler.withCache(super.myCollectEventList);
+    readonly collectEventList = this.cacheHandler.withCache(super.collectEventList);
+    readonly eventUsers = this.cacheHandler.withCache(super.eventUsers);
 
+    /*
+    @Deprecated
+     */
+    readonly myCollectEventList = this.cacheHandler.withCache(super.myCollectEventList);
 
 }
 
@@ -297,11 +350,9 @@ export function createClient(username: StrNum, password: StrNum, school: string)
 export async function createClient(username?: StrNum, password?: StrNum, school?: string, qrcodeToken?: string): Promise<Client> {
     const client: Client = new ClientImp();
     if (qrcodeToken) {
-        const client_1 = await client.login(qrcodeToken);
-        return client_1;
+        return await client.login(qrcodeToken);
     } else {
-        const client_2 = await client.login(username, password, school);
-        return client_2;
+        return await client.login(username, password, school);
     }
 }
 

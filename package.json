@@ -8,6 +8,7 @@
     "app": "ts-node src/app.ts",
     "publishn": "npm publish",
     "test": "ts-node src/test/test.ts",
+    "tt": "ts-node /src/test/api.ts",
     "build": "tsup"
   },
   "files": [
