@@ -30,7 +30,6 @@ export interface UserInfo {
     sid: string;
     sid1: string;
     is_init: string;
-    realname: string;
     is_open_idcard: number;
     jump_to_old: number;
     is_youke: number;

@@ -3,7 +3,8 @@ import {EventInfo, SchoolEvent} from "./entity/event";
 import {
     CancelEvent,
     EventDetail,
-    EventList, EventUsers,
+    EventList,
+    EventUsers,
     JoinEvent,
     Login,
     MSchoolInfo,
@@ -16,7 +17,7 @@ import {MD5} from 'crypto-js';
 import {getLogger} from "log4js";
 import {EventUser, SchoolInfo, StudentInfo} from "./entity/user";
 import * as Fs from "fs";
-import {filter} from "./o/common";
+import {callSchoolList, schoolCache} from "./o/api";
 
 const logger = getLogger("CLIENT");
 export let baseDir = process.cwd() + "/pu-client";
@@ -177,6 +178,12 @@ export class ClientBase implements Client {
             })
             this.userdataPath = baseDir + "/userdata/" + `${this.userinfo?.sno}_${this.userinfo?.sid}`;
             Fs.mkdirSync(this.userdataPath, {recursive: true})
+            const o:any={};
+            o.userinfo = this.userinfo;
+            o.oauth_token = this.oauth_token;
+            o.oauth_token_secret = this.oauth_token_secret;
+            // o.school = this.school;
+            // o.userdataPath = baseDir + "/userdata/" + `${sno}_${school}`;
             Fs.writeFileSync(this.userdataPath + "/userinfo.json", JSON.stringify(this))
         }catch (e){
             return Promise.reject(e)}
@@ -315,11 +322,11 @@ export class ClientImp extends ClientBase {
             const hash = MD5(target.name + JSON.stringify(args)).toString().toLowerCase();
             const data = this.cache.get(hash);
             if (data !== undefined && getMTime() - data.time < thisArg.options.cacheTime&&args[args.length-1]) {
-                logger.debug("cache hit " + target.name)
+                logger.debug(`从缓存 => ${target.name} ${thisArg.userinfo?.sno}`)
                 return data.data;
             } else {
                 if(args[args.length-1]){
-                    logger.debug("cache miss" + target.name)
+                    logger.debug(`缓存不存在 => ${target.name}`)
                 }
 
                 const rv = target.bind(thisArg)(args[0], args[1], args[2], args[3], args[4], args[5])
@@ -345,14 +352,29 @@ export class ClientImp extends ClientBase {
 }
 
 export function createClient(qrcodeToken: string): Promise<Client>;
-export function createClient(username: StrNum, password: StrNum, school: string): Promise<Client>;
+export function createClient(username: StrNum,  school: string): Promise<Client>;
+export function createClient(username: StrNum,  school: string,password: StrNum): Promise<Client>;
 
-export async function createClient(username?: StrNum, password?: StrNum, school?: string, qrcodeToken?: string): Promise<Client> {
+export async function createClient(username?: StrNum, school?: string, password?: StrNum, qrcodeToken?: string): Promise<Client> {
     const client: Client = new ClientImp();
+   await callSchoolList();
     if (qrcodeToken) {
         return await client.login(qrcodeToken);
     } else {
-        return await client.login(username, password, school);
+        if(!password){
+            logger.debug(`尝试使用本地缓存创建客户端 =>${username}`)
+            return  await createClientByCache(username as string, schoolCache[school as string]);
+
+        }else {
+            try {
+                logger.debug(`尝试使用本地缓存创建客户端 =>${username}`)
+                return await createClientByCache(username as string, school as string);
+            }catch (err){
+                logger.debug(`本地缓存创建客户端失败 =>${username}`)
+                return await client.login(username, password, school);
+            }
+        }
+
     }
 }
 
@@ -365,17 +387,20 @@ export async function createClient(username?: StrNum, password?: StrNum, school?
  */
 export async function createClientByCache(sno: StrNum, school: StrNum) {
     if (!Fs.existsSync(baseDir + "/userdata/" + `${sno}_${school}` + "/userinfo.json")) {
-        return Promise.reject("不存在")
+        return Promise.reject("认证失败")
     }
     const client: Client = new ClientImp();
     const cac = JSON.parse(Fs.readFileSync(baseDir + "/userdata/" + `${sno}_${school}` + "/userinfo.json").toString());
-    client.userinfo = cac.userinfo;
+    // client.userinfo = cac.userinfo;
     client.oauth_token = cac.oauth_token;
     client.oauth_token_secret = cac.oauth_token_secret;
-    client.school = cac.school;
-    client.userdataPath = baseDir + "/userdata/" + `${sno}_${school}`;
+    client.userinfo=cac.userinfo;
+    // client.school = cac.school;
+    // client.userdataPath = baseDir + "/userdata/" + `${sno}_${school}`;
     try {
         await client.test();
+        logger.debug(`本地缓存创建客户端成功 =>${sno}`)
+        await client.updateInfo();
         return client;
     } catch (e) {
         return Promise.reject("认证失败")

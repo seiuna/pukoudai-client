@@ -2,7 +2,9 @@ import {BClient} from "./BClient";
 import {sign} from "./sign";
 import * as Log4js from "log4js"
 
+//学校名 > 标识 例如 南京工程学院 > @njit.com
 export let schoolCache: any | undefined;
+
 
 export const requestOptions = {
     method: 'POST',
@@ -26,6 +28,8 @@ export const callSchoolList = async (): Promise<any> => {
         schoolCache = data.reduce((cache: any, school: any) => {
             if (school) {
                 cache[school.name] = school.email;
+                cache[school.school] = school.email;
+                cache[school.email] = school.school;
             }
             return cache;
         }, {});
