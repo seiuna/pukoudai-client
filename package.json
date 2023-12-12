@@ -6,10 +6,12 @@
   "module": "./dist/index.mjs",
   "scripts": {
     "app": "ts-node src/app.ts",
-    "publishn": "npm publish",
-    "test": "ts-node src/test/test.ts",
-    "tt": "ts-node /src/test/api.ts",
-    "build": "tsup"
+    "pub": "npm publish",
+    "dev": "ts-node src/test/test.ts",
+    "build": "tsup",
+    "transfer": "ts-node src/app/transfer.ts",
+    "clicker": "ts-node src/app/clicker.ts",
+    "monitor": "ts-node src/app/monitor.ts"
   },
   "files": [
     "dist"
