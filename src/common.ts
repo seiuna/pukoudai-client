@@ -1,9 +1,9 @@
-import {BClient, qrcode} from "./o/BClient";
 import {EventInfo, loginType} from "./o/entity";
 import {scheduleJob} from "node-schedule";
 import * as log4js from "log4js";
 import {Client, ClientImp} from "./client";
 import {callSchoolList, requestOptions, schoolCache} from "./o/api";
+import {Qrcode} from "./utils"
 const {AutoComplete, prompt, Select, Input, Password} = require('enquirer');
 const logger = log4js.getLogger("COMMON");
 
@@ -45,15 +45,14 @@ const toTimeString = (time: number) => {
     return `${hh}小时 ${mm}分钟 ${ss}秒`;
 }
 
-const job = scheduleJob('0/1 * * * * *', function () {
+const job = setInterval(function () {
     events.forEach((v) => {
-            const time = new Date().getTime() - 1000
+            const time = new Date().getTime()-1200;
             const eventRegTime = Number.parseInt(String(v.event.regStartTimeStr)) * 1000;
-            if (time >= eventRegTime) {
+            if (time > eventRegTime) {
                 if (v.bps) {
                     if (v.client.joinDelay < Date.now()) {
                         v.client.joinEvent(v.event.actiId).then((data) => {
-
                             if (data.status) {
                                 logger.info(`账户:${v.client.userinfo?.realname} 活动: ${v.event.name} 报名成功`)
                                 v.bps = false;
@@ -63,7 +62,7 @@ const job = scheduleJob('0/1 * * * * *', function () {
                                     v.bps = false;
                                 }
                             }
-                        })
+                        }).catch()
                     } else {
                         logger.warn(`cd中...`)
 
@@ -76,7 +75,7 @@ const job = scheduleJob('0/1 * * * * *', function () {
 
         }
     )
-});
+},100);
 export const terminalClient = async (): Promise<Client> => {
     await callSchoolList()
     const client: Client = new ClientImp();
@@ -129,7 +128,7 @@ export const terminalClient = async (): Promise<Client> => {
     }
     if (method === ("二维码登陆(强烈推荐)")) {
         type = "qrcode";
-        await qrcode().then((data) => {
+        await Qrcode().then((data) => {
             console.log(data.terminal)
             console.log("请在1分钟之内，使用pu口袋校园app扫描上方二维码登录。")
             token = data.token;
