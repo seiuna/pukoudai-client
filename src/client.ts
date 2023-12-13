@@ -22,6 +22,8 @@ import {callSchoolList, schoolCache} from "./o/api";
 const logger = getLogger("CLIENT");
 export let baseDir = process.cwd() + "/pu-client";
 
+Fs.mkdirSync(baseDir + "/userdata", {recursive: true})
+Fs.mkdirSync(baseDir + "/cache", {recursive: true})
 export declare class Client {
     processing: boolean;
     userinfo: StudentInfo | undefined;
