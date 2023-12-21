@@ -5,6 +5,7 @@ import {baseDir, Client, ClientImp} from "./client";
 import {callSchoolList, requestOptions, schoolCache} from "./o/api";
 import {Qrcode} from "./utils"
 import * as Fs from "fs";
+import {SchoolList} from "./internal";
 const {AutoComplete, prompt, Select, Input, Password} = require('enquirer');
 const logger = log4js.getLogger("COMMON");
 Fs.mkdirSync(baseDir + "/userdata", {recursive: true})
@@ -49,7 +50,7 @@ const toTimeString = (time: number) => {
 
 const job = setInterval(function () {
     events.forEach((v) => {
-            const time = new Date().getTime()-1200;
+            const time = new Date().getTime()-400;
             const eventRegTime = Number.parseInt(String(v.event.regStartTimeStr)) * 1000;
             if (time > eventRegTime) {
                 if (v.bps) {
@@ -78,9 +79,12 @@ const job = setInterval(function () {
         }
     )
 },100);
+
 export const terminalClient = async (): Promise<Client> => {
     await callSchoolList()
     const client: Client = new ClientImp();
+
+
     const login = new Select(
         {
             name: "login",
@@ -93,7 +97,7 @@ export const terminalClient = async (): Promise<Client> => {
         message: '选择你的学校',
         limit: 10,
         initial: 2,
-        choices: Object.keys(schoolCache)
+        choices: Object.keys(await getSchoolMap().then((e)=> {return e.ne}))
     });
     const username = new Input({
         name: 'school',
@@ -156,3 +160,21 @@ export const terminalClient = async (): Promise<Client> => {
     }
     return Promise.reject("未知错误")
 };
+let schoolCache1:any= {};
+let schoolCache2:any= {};
+let schoolCache3:any= {};
+let flag=false;
+export async function getSchoolMap(){
+    if(!flag){
+
+    const data:Array<any>=await SchoolList();
+    data.forEach((v)=>{
+        // @ts-ignore
+        schoolCache1[v.name]=v.email;
+        schoolCache2[v.email]=v.name;
+        schoolCache3[v.school] = v.email;
+
+    }) }
+    flag=true;
+    return {ne:schoolCache1,en:schoolCache2,se:schoolCache3};
+}

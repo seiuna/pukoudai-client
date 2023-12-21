@@ -1,15 +1,15 @@
-import {ClientOption, Filter, StrNum} from "./entity/entities";
+import {ClientOption, Filter, GroupData, StrNum} from "./entity/entities";
 import {EventInfo, SchoolEvent} from "./entity/event";
 import {
     CancelEvent,
     EventDetail,
     EventList,
-    EventUsers,
+    EventUsers, FavEvent, GroupList,
     JoinEvent,
     Login,
     MSchoolInfo,
     MUserInfo,
-    MyEventCollect,
+    MyEventList, MyFavEvent, MyGroupList,
     Qrcode
 } from "./internal";
 import {getMTime} from "./utils";
@@ -17,16 +17,39 @@ import {MD5} from 'crypto-js';
 import {getLogger} from "log4js";
 import {EventUser, SchoolInfo, StudentInfo} from "./entity/user";
 import * as Fs from "fs";
-import {callSchoolList, schoolCache} from "./o/api";
+import {callSchoolList, schoolCache, schoolCache2} from "./o/api";
 
 const logger = getLogger("CLIENT");
 export let baseDir = process.cwd() + "/pu-client";
 
 Fs.mkdirSync(baseDir + "/userdata", {recursive: true})
 Fs.mkdirSync(baseDir + "/cache", {recursive: true})
+const default_info:StudentInfo={
+    amount2: "",
+    can_add_event: 0,
+    class: "",
+    credit: 0,
+    cx: "",
+    event_count: 0,
+    face: "",
+    group_count: 0,
+    is_init: "",
+    is_open_idcard: 0,
+    is_youke: 0,
+    jump_to_old: 0,
+    major: "",
+    realname: "",
+    sid: "",
+    sid1: "",
+    sno: "",
+    uid: 111,
+    year: "",
+    yx: ""
+
+}
 export declare class Client {
-    processing: boolean;
-    userinfo: StudentInfo | undefined;
+
+    userinfo: StudentInfo;
     joinDelay: number;
     school: SchoolInfo | undefined;
     qrcodeToken: string | undefined;
@@ -59,13 +82,11 @@ export declare class Client {
 
     //以下函数都有缓存
 
-    /*
-    获取我的收藏活动列表
-    @Deprecated
-     */
-    myCollectEventList(filter: Filter,cache?:boolean): Promise<DataResult<Array<SchoolEvent>>>;
+
+
+
     //获取收藏的活动列表
-    collectEventList(filter: Filter,cache?:boolean): Promise<DataResult<Array<SchoolEvent>>>;
+    myFavEventList(cache?:boolean): Promise<DataResult<Array<SchoolEvent>>>;
     //获取活动详情
     eventInfo(eventId: StrNum,cache?:boolean): Promise<DataResult<EventInfo>>;
     //获取活动列表
@@ -79,11 +100,12 @@ export declare class Client {
     eventUsers(eventId:StrNum,page:number,cache?:boolean): Promise<DataResult<Array<EventUser>>>;
 
     //获取我的活动列表
-    // myEventList(filter?: Filter): Promise<DataResult<Array<SchoolEvent>>>;
+    myEventList(type:"已结束"|"进行中"|"审核中"|"未开始"|"全部",page?:number,count?:number,filter?: Filter): Promise<DataResult<Array<SchoolEvent>>>;
 
-
-
-
+    groupList( page?: number,cache?:boolean):Promise<DataResult<Array<GroupData>>>;
+    myGroupList( page?: number,cache?:boolean):Promise<DataResult<Array<GroupData>>>;
+    favEvent(eventId: StrNum,action:"fav"|"cancel"): Promise<DataResult<string>>;
+    // groupEvent
 
 }
 
@@ -91,7 +113,7 @@ export class ClientBase implements Client {
     joinDelay: number = -1;
     originLoginData: any;
     processing: boolean = false;
-    userinfo: StudentInfo | undefined;
+    userinfo: StudentInfo=default_info;
     qrcodeToken: string | undefined;
     oauth_token: string | undefined;
     oauth_token_secret: string | undefined;
@@ -190,7 +212,11 @@ export class ClientBase implements Client {
         }catch (e){
             return Promise.reject(e)}
     }
-
+    async favEvent(eventId: StrNum,action:"fav"|"cancel"): Promise<DataResult<string>> {
+        return await FavEvent(this, eventId,action).then((data) => {
+            return {status: true, data: data.msg};
+        })
+    }
     async joinEvent(eventId: StrNum): Promise<DataResult<string>> {
         if (Date.now() < this.joinDelay) {
             return {status: false, data: "操作过于频繁，请稍候再试？"};
@@ -265,40 +291,37 @@ export class ClientBase implements Client {
         })
 
     }
-    async myCollectEventList(filter: Filter={},cache:boolean=true): Promise<DataResult<Array<SchoolEvent>>> {
-        return await MyEventCollect(this).then((data) => {
-            if (filter) {
-                return data.content.filter((v: SchoolEvent) => {
+    async myFavEventList(cache:boolean=true): Promise<DataResult<Array<SchoolEvent>>> {
+        try{
+            const rtv= (await MyFavEvent(this,100000));
+            return {status:true,data:rtv}
 
-                    let flag1 = true;
+        }catch (err){
+            return Promise.reject(err)
+        }
 
-                    if (filter.allow) {
-                        flag1 = flag1 && v.allow === '0';
-                    }
-                    if (filter.name) {
-                        if (!v.title.includes(filter.name)) {
-                            flag1 = flag1 && false;
-                        }
-                    }
-                    if (filter.credit) {
-                        if (v.credit < filter.credit) {
-                            flag1 = flag1 && false;
-                        }
-                    }
-                    if (filter.func) {
-                        if (!filter.func(v)) {
-                            flag1 = flag1 && false;
-                        }
-                    }
-                    return flag1;
-                })
-            } else {
-                return data.content;
-            }
-        })
     }
-    async collectEventList(filter: Filter, cache?: boolean): Promise<DataResult<Array<SchoolEvent>>> {
-        return this.myCollectEventList(filter,cache);
+
+    readonly smap:any={
+        // 2 进行中 1 未开始 0 全部 4 已完结  5 审核中
+
+        进行中:2,
+        未开始:1,
+        全部:0,
+        已完结:4,
+        审核中:5,
+    }
+    async myEventList(type:"已结束"|"进行中"|"审核中"|"未开始"|"全部", page:number=1, count:number=(this.userinfo.event_count*100<10?50:this.userinfo.event_count*100), filter?: Filter): Promise<DataResult<Array<SchoolEvent>>>{
+
+        try{
+            const status=this.smap[type]
+            const rtv= await MyEventList(this,page,status,count);
+            return {status:true,data:rtv}
+
+        }catch (err){
+            return Promise.reject(err)
+        }
+
     }
     async eventUsers(eventId: StrNum, page: number=-1, cache?: boolean): Promise<DataResult<Array<EventUser>>> {
         const rtv=[];
@@ -306,7 +329,7 @@ export class ClientBase implements Client {
         for (let i = 1; i < count; i++) {
             const data = await EventUsers(this, eventId,i).then((data: any) => {
                 return data.content;
-            })
+            }).catch()
             if(data.length==0){
                 break;
             }
@@ -314,6 +337,53 @@ export class ClientBase implements Client {
         }
         return {status: true, data: rtv};
 
+    }
+    async groupList(page = -1, cache = true): Promise<DataResult<Array<GroupData>>> {
+
+        const promises: Promise<unknown>[] = [];
+        let i=1;
+        const data=await GroupList(this, i);
+        const count = page == -1 ? data.content.totalPages : page;
+        logger.debug("总页数:"+count);
+        for ( i= 2; i <= count; i++) {
+            promises.push(GroupList(this, i));
+        }
+
+        const results = await Promise.allSettled(promises);
+        const rtv: GroupData[] = [];
+
+        results.forEach((result) => {
+            if (result.status === 'fulfilled') {
+                const data = (result as PromiseFulfilledResult<any>).value;
+                rtv.push(...data.content.data);
+
+            }
+        });
+
+        return { status: true, data: rtv };
+    }
+
+    async myGroupList(page = -1, cache = true): Promise<DataResult<Array<GroupData>>> {
+        const count = page === -1 ? 4 : page;
+        const promises: Promise<unknown>[] = [];
+
+        for (let i = 1; i <= count; i++) {
+            promises.push(MyGroupList(this, i));
+        }
+
+        const results = await Promise.allSettled(promises);
+        const rtv: GroupData[] = [];
+
+        results.forEach((result) => {
+            if (result.status === 'fulfilled') {
+                const data = (result as PromiseFulfilledResult<any>).value;
+                if (data.content&&data.content.length < 10) {
+                    rtv.push(...data.content);
+                }
+            }
+        });
+
+        return { status: true, data: rtv };
     }
 }
 
@@ -343,13 +413,12 @@ export class ClientImp extends ClientBase {
     };
     readonly eventList = this.cacheHandler.withCache(super.eventList);
     readonly eventInfo = this.cacheHandler.withCache(super.eventInfo);
-    readonly collectEventList = this.cacheHandler.withCache(super.collectEventList);
+    // readonly collectEventList = this.cacheHandler.withCache(super.collectEventList);
     readonly eventUsers = this.cacheHandler.withCache(super.eventUsers);
+    readonly  groupList=this.cacheHandler.withCache(super.groupList);
+    readonly  myGroupList=this.cacheHandler.withCache(super.myGroupList);
 
-    /*
-    @Deprecated
-     */
-    readonly myCollectEventList = this.cacheHandler.withCache(super.myCollectEventList);
+
 
 }
 
@@ -359,18 +428,18 @@ export function createClient(username: StrNum,  school: string,password: StrNum)
 
 export async function createClient(username?: StrNum, school?: string, password?: StrNum, qrcodeToken?: string): Promise<Client> {
     const client: Client = new ClientImp();
-   await callSchoolList();
+    await callSchoolList();
     if (qrcodeToken) {
         return await client.login(qrcodeToken);
     } else {
         if(!password){
             logger.debug(`尝试使用本地缓存创建客户端 =>${username}`)
-            return  await createClientByCache(username as string, schoolCache[school as string]);
+            return  await createClientByCache(username as string, schoolCache2[school as string]);
 
         }else {
             try {
                 logger.debug(`尝试使用本地缓存创建客户端 =>${username}`)
-                return await createClientByCache(username as string, school as string);
+                return await createClientByCache(username as string, schoolCache2[school as string]);
             }catch (err){
                 logger.debug(`本地缓存创建客户端失败 =>${username}`)
                 return await client.login(username, password, school);
@@ -417,6 +486,7 @@ interface CacheData {
 }
 
 export interface DataResult<T> {
+
     status: boolean;
     data: T;
 }
@@ -428,3 +498,7 @@ export function setBaseDir(path: string) {
 export function getBaseDir() {
     return baseDir;
 }
+
+
+
+

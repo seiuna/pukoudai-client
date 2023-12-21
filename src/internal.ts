@@ -18,7 +18,16 @@ function addAuthTokens(formData: FormData, client: Client) {
 }
 
 let id = 0;
+export async function SchoolList(): Promise<any> {
+    return CallAPI(undefined, {
+        endpoint: "/index.php?app=api&mod=Sitelist&act=getSchools",
+        login: false,
+        processResponse: (data) => {
+            return data;
+        },
+    });
 
+}
 export async function Login(client: Client, school: StrNum, password: StrNum, username: StrNum): Promise<any> {
     return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Sitelist&act=login",
@@ -38,23 +47,26 @@ export async function Login(client: Client, school: StrNum, password: StrNum, us
     });
 }
 
-export async function CallAPI(client: Client, options: {
+export async function CallAPI(client: Client|undefined, options: {
     endpoint: string,
     login: boolean,
     formData?: FormData,
     additionalFormData?: (formData: FormData, client: Client) => void,
     processResponse?: (data: any) => any,
 }): Promise<any> {
-    if (client.userinfo !== undefined || !options.login) {
+    if ( !options.login||client===undefined||client.userinfo !== undefined) {
         const formData = options.formData || new FormData();
 
-        if (client.userinfo !== undefined) {
+        if (client!==undefined&&client.userinfo !== undefined) {
             formData.append("sid", client.userinfo.sid);
             addAuthTokens(formData, client);
+            if (options.additionalFormData) {
+
+                options.additionalFormData(formData, client);
+
+            }
         }
-        if (options.additionalFormData) {
-            options.additionalFormData(formData, client);
-        }
+
         formData.append('version', "7.10.0");
         formData.append('from', "pc");
         const tid = id;
@@ -75,7 +87,8 @@ export async function CallAPI(client: Client, options: {
                     return options.processResponse(data);
                 }
             }catch (err){
-                return Promise.reject("server down")
+                logger.error("服务器死了", err);
+                return Promise.reject("服务器死了")
             }
 
             return data;
@@ -150,11 +163,26 @@ export function CancelEvent(client: Client, eventId: string | number): Promise<a
     });
 }
 
-export function MyEventList(client: Client): Promise<any> {
+/**
+ *
+ * @param client
+ * @param page
+ * @param action lanuch|join
+ * @param status 2 进行中 1 未开始 0 全部 4 已完结  5 审核中
+ * @constructor
+ */
+export function MyEventList(client: Client, page: number,status:number,count:number): Promise<any> {
     return CallAPI(client, {
-        endpoint: "/index.php?app=api&mod=UserCredit&act=getEventList&",
+        endpoint: "/index.php?app=api&mod=Event&act=myEventList",
         login: true,
-        formData: undefined,
+        formData: (function () {
+            const formData = new FormData();
+            formData.append("page", page.toString());
+            formData.append("action", 'join');
+            formData.append("status", status.toString());
+            formData.append("count", count.toString());
+            return formData;
+        })(),
         processResponse: (data) => {
             return data;
         },
@@ -200,10 +228,15 @@ export function MSchoolInfo(client: Client): Promise<any> {
 }
 
 //https://pocketuni.net/index.php?act=myEventCollect&mod=Collect&app=api
-export function MyEventCollect(client: Client): Promise<any> {
+export function MyFavEvent(client: Client,count:number): Promise<any> {
     return CallAPI(client, {
         endpoint: "/index.php?act=myEventCollect&mod=Collect&app=api",
         login: true,
+        formData: (function () {
+            const formData = new FormData();
+            formData.append("count",count.toString());
+            return formData;
+        })(),
         processResponse: (data) => {
             return data;
         },
@@ -217,6 +250,96 @@ export function EventUsers(client: Client, eventId: StrNum,page:number): Promise
             const formData = new FormData();
             formData.append("id", eventId.toString());
             formData.append("page",page.toString());
+            return formData;
+        })(),
+        processResponse: (data) => {
+            return data;
+        },
+    });
+}
+
+/**
+ * 获取部落列表
+ * @param client
+ * @param page 每页最多10个
+ * @constructor
+ */
+export function GroupList(client: Client,page:StrNum): Promise<any> {
+    return CallAPI(client, {
+        endpoint: "/index.php?act=groupList&mod=Group&app=api",
+        login: true,
+        formData: (function () {
+            const formData = new FormData();
+            formData.append("page", page.toString());
+            return formData;
+        })(),
+        processResponse: (data) => {
+            return data;
+        },
+    });
+}
+
+/**
+ * 活动部落活动
+ * @param client
+ * @param assnId 部落id
+ * @param page 每页最多10个
+ * @constructor
+ */
+export function GroupEvent(client: Client,assnId:StrNum,page:StrNum): Promise<any> {
+    return CallAPI(client, {
+        endpoint: "/index.php?act=groupList&mod=Group&app=api",
+        login: true,
+        formData: (function () {
+            const formData = new FormData();
+            formData.append("page", page.toString());
+            formData.append("assnId",assnId.toString());
+            return formData;
+        })(),
+        processResponse: (data) => {
+            return data;
+        },
+    });
+}
+
+/**
+ * 取消收藏或者收藏活动
+ * @param client
+ * @param eventId 活动id
+ * @param type fav|cancel
+ * @constructor
+ */
+export function FavEvent(client: Client,eventId:StrNum,type:"fav"|"cancel"): Promise<any> {
+    return CallAPI(client, {
+        endpoint: "/index.php?act=fav&mod=Event&app=api",
+        login: true,
+        formData: (function () {
+            const formData = new FormData();
+            formData.append("type", type);
+            formData.append("id",eventId.toString());
+            return formData;
+        })(),
+        processResponse: (data) => {
+            return data;
+        },
+    });
+}
+
+/**
+ *
+ * @param client
+ * @param page 每页最多10个
+ * @param action 默认 空 apply 为申请中
+ * @constructor
+ */
+export function MyGroupList(client: Client,page:StrNum,action=''): Promise<any> {
+    return CallAPI(client, {
+        endpoint: "/index.php?act=mygrouplist&mod=Group&app=api",
+        login: true,
+        formData: (function () {
+            const formData = new FormData();
+            formData.append("page", page.toString());
+            formData.append("action",action);
             return formData;
         })(),
         processResponse: (data) => {

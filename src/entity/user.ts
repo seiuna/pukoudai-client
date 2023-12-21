@@ -22,9 +22,9 @@ export interface StudentInfo extends UserInfo {
     // 未知
     amount2: string;
     // 参与活动次数
-    event_count: string;
+    event_count: number;
     // 部落数量
-    group_count: string;
+    group_count: number;
 }
 
 export interface SchoolInfo {
