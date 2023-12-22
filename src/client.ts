@@ -285,7 +285,7 @@ export class ClientBase implements Client {
         let rtv:any=[];
         try{
             rtv = (await EventDetail(this, eventId));
-            return {status:true,data:rtv}
+            return {status:true,data:rtv.content}
 
         }catch (err){
             return {status:false,data:rtv}
