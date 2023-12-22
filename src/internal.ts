@@ -132,7 +132,7 @@ export function EventDetail(client: Client, eventId: string | number): Promise<a
     });
 }
 
-export function EventList(client: Client, page: number, keyword: string): Promise<any> {
+export function EventList(client: Client, status:number, page: number, count: number,keyword:string): Promise<any> {
     return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Event&act=newEventList&",
         login: true,
@@ -140,6 +140,8 @@ export function EventList(client: Client, page: number, keyword: string): Promis
             const formData = new FormData();
             formData.append("page", page.toString());
             formData.append("keyword", keyword);
+            formData.append("count",count.toString() );
+            formData.append("eventStatus",status?status.toString():'0');
             return formData;
         })(),
         processResponse: (data) => {

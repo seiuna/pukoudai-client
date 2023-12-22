@@ -90,7 +90,7 @@ export declare class Client {
     //获取活动详情
     eventInfo(eventId: StrNum,cache?:boolean): Promise<DataResult<EventInfo>>;
     //获取活动列表
-    eventList(keyword: string, page: number, filter: Filter,cache?:boolean): Promise<DataResult<Array<SchoolEvent>>>;
+    eventList(type?:"已结束"|"进行中"|"审核中"|"未开始"|"全部",keyword?: string,count?:number, page?: number,cache?:boolean): Promise<DataResult<Array<SchoolEvent>>>;
     /**
      获取活动用户列表
      * @param eventId 活动id
@@ -174,15 +174,26 @@ export class ClientBase implements Client {
         }
     }
 
+    /**
+     *
+     * @param eventId
+     * @return data 未加入该活动 ok
+     */
     async cancelEvent(eventId: StrNum): Promise<DataResult<string>> {
-        return await CancelEvent(this, eventId).then((data) => {
+        try {
+            return await CancelEvent(this, eventId).then((data) => {
 
-            if (data.msg.includes("用户不存在")) {
-                return {status: true, data: '未加入该活动'};
-            }
-            return {status: true, data: data.msg};
+                if (data.msg.includes("用户不存在")) {
+                    return {status: true, data: '未加入该活动'};
+                }
+                return {status: true, data: "ok"};
 
-        })
+            })
+        }catch (err){
+            return {status: false, data: ""};
+
+        }
+
     }
 
 
@@ -210,12 +221,18 @@ export class ClientBase implements Client {
             // o.userdataPath = baseDir + "/userdata/" + `${sno}_${school}`;
             Fs.writeFileSync(this.userdataPath + "/userinfo.json", JSON.stringify(this))
         }catch (e){
-            return Promise.reject(e)}
+            return Promise.reject(e)
+        }
     }
     async favEvent(eventId: StrNum,action:"fav"|"cancel"): Promise<DataResult<string>> {
-        return await FavEvent(this, eventId,action).then((data) => {
-            return {status: true, data: data.msg};
-        })
+        try {
+            return  await FavEvent(this, eventId, action).then((data) => {
+                return {status: true, data: data.msg};
+            })
+        }catch (err){
+            return {status: false, data: ''};
+
+        }
     }
     async joinEvent(eventId: StrNum): Promise<DataResult<string>> {
         if (Date.now() < this.joinDelay) {
@@ -234,70 +251,54 @@ export class ClientBase implements Client {
         })
     }
 
-    async eventList(keyword: string, page: number, filter: Filter = {},cache:boolean=true): Promise<DataResult<Array<SchoolEvent>>> {
+    async eventList(type:"已结束"|"进行中"|"未开始"|"全部"="进行中",keyword: string="",count:number=40, page: number=-1,cache:boolean=true): Promise<DataResult<Array<SchoolEvent>>> {
         let rtv:SchoolEvent[]=[];
-        let flag=true;
-        const time=getMTime()
-        const cyc=page==-1;
-        const max = page;
-        while (flag){
-            if(cyc){
-                page++;
-            } else {
-                page++;
-                if (page > max) {
-                    break;
+        const cyc=page === -1;
+        let current=1;
+      let failed=0;
+      const status=this.smap[type]
+            while(cyc||current<=page){
+                try {
+                    if(current>page&&!cyc){
+                        break;
+                    }
+                rtv.push(...(await EventList(this,status,current,count,keyword)).content);
+                current++;
+                if(rtv.length%count!==0){
+                    break;}
+                }catch (err){
+                    console.log(err)
+                    if(failed>5){
+                        console.warn(`获取活动列表失败[${failed}]`)
+                        return {status: false, data: rtv};
+                    }
+                    failed++;
                 }
             }
-            rtv = rtv.concat(await EventList(this, page, keyword).then((data) => {
-                if(filter){
-                    return data.content.filter((v:SchoolEvent)=>{
 
-                        let flag1=true;
-                        if(time>=v.eTime){
-                            flag=false;
-                        }
-                        if(filter.allow){
-                            flag1 = flag1 && v.allow === '0';
-                        }
-                        if(filter.name){
-
-                            if(RegExp(filter.name).test(v.title)){
-                                flag1=flag1&&true;}
-                        }
-                        if(filter.credit){
-                            if(v.credit<filter.credit){
-                                flag1=flag1&&false;
-                            }
-                        }
-                        if (filter.func) {
-                            if (!filter.func(v)) {
-                                flag1 = flag1 && false;
-                            }
-                        }
-                        return flag1;
-                    })
-                }
-                return data;
-            }))
-        }
         return {status: true, data: rtv};
+
+
     }
 
     async eventInfo(eventId: StrNum,cache:boolean=true): Promise<DataResult<EventInfo>> {
-
-        return await EventDetail(this, eventId).then((data: any) => {
-            return {status: true, data: data.content};
-        })
-
-    }
-    async myFavEventList(cache:boolean=true): Promise<DataResult<Array<SchoolEvent>>> {
+        let rtv:any=[];
         try{
-            const rtv= (await MyFavEvent(this,100000));
+            rtv = (await EventDetail(this, eventId));
             return {status:true,data:rtv}
 
         }catch (err){
-            return Promise.reject(err)
+            return {status:false,data:rtv}
+        }
+    }
+    async myFavEventList(cache:boolean=true): Promise<DataResult<Array<SchoolEvent>>> {
+        let rtv:any=[];
+        try{
+             rtv = (await MyFavEvent(this,100000));
+            return {status:true,data:rtv}
+
+        }catch (err){
+            return {status:false,data:rtv}
         }
 
     }
@@ -310,6 +311,7 @@ export class ClientBase implements Client {
         全部:0,
         已完结:4,
         审核中:5,
+        已结束:3
     }
     async myEventList(type:"已结束"|"进行中"|"审核中"|"未开始"|"全部", page:number=1, count:number=(this.userinfo.event_count*100<10?50:this.userinfo.event_count*100), filter?: Filter): Promise<DataResult<Array<SchoolEvent>>>{
 
@@ -326,14 +328,26 @@ export class ClientBase implements Client {
     async eventUsers(eventId: StrNum, page: number=-1, cache?: boolean): Promise<DataResult<Array<EventUser>>> {
         const rtv=[];
         let count=page==-1?1000:page;
+        let failed=1;
         for (let i = 1; i < count; i++) {
-            const data = await EventUsers(this, eventId,i).then((data: any) => {
-                return data.content;
-            }).catch()
-            if(data.length==0){
-                break;
-            }
-            rtv.push(...data);
+         try {
+             const data = await EventUsers(this, eventId,i).then((data: any) => {
+                 return data.content;
+             })
+             if(data.length==0){
+                 break;
+             }
+             rtv.push(...data);
+
+         }catch (err){
+             if (failed>=5){
+                 logger.warn(`获取活动用户列表失败[${failed}]`)
+                 return {status: false, data: rtv};
+
+             }
+             failed++;
+             i--;
+         }
         }
         return {status: true, data: rtv};
 
@@ -349,18 +363,23 @@ export class ClientBase implements Client {
             promises.push(GroupList(this, i));
         }
 
-        const results = await Promise.allSettled(promises);
-        const rtv: GroupData[] = [];
+  try {
+      const results = await Promise.allSettled(promises);
+      const rtv: GroupData[] = [];
 
-        results.forEach((result) => {
-            if (result.status === 'fulfilled') {
-                const data = (result as PromiseFulfilledResult<any>).value;
-                rtv.push(...data.content.data);
+      results.forEach((result) => {
+          if (result.status === 'fulfilled') {
+              const data = (result as PromiseFulfilledResult<any>).value;
+              rtv.push(...data.content.data);
 
-            }
-        });
+          }
+      });
+      return { status: true, data: rtv };
 
-        return { status: true, data: rtv };
+  }catch (err){
+      return { status: false, data: [] };
+
+  }
     }
 
     async myGroupList(page = -1, cache = true): Promise<DataResult<Array<GroupData>>> {
@@ -371,6 +390,7 @@ export class ClientBase implements Client {
             promises.push(MyGroupList(this, i));
         }
 
+    try {
         const results = await Promise.allSettled(promises);
         const rtv: GroupData[] = [];
 
@@ -382,8 +402,13 @@ export class ClientBase implements Client {
                 }
             }
         });
-
         return { status: true, data: rtv };
+
+    }catch (err){
+        return { status: false, data: [] };
+
+    }
+
     }
 }
 
