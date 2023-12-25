@@ -8,9 +8,6 @@ const logger = Log4js.getLogger("API")
 
 const root = "https://pocketuni.net";
 
-export const requestOptions = {
-    method: 'POST',
-};
 
 function addAuthTokens(formData: FormData, client: Client) {
     formData.append('oauth_token', client.oauth_token + "");
@@ -61,26 +58,31 @@ export async function CallAPI(client: Client|undefined, options: {
             formData.append("sid", client.userinfo.sid);
             addAuthTokens(formData, client);
             if (options.additionalFormData) {
-
                 options.additionalFormData(formData, client);
 
             }
         }
-
         formData.append('version', "7.10.0");
         formData.append('from', "pc");
         const tid = id;
         id++;
         logger.debug(`Called API  => ${tid} ` + options.endpoint)
         try {
-            const response = await fetch(root + options.endpoint, Object.assign(requestOptions, {
-                body: formData
-            }));
+            const response = await fetch(root + options.endpoint,{
+                body: formData,
+                method: 'POST',
+                headers:{
+                    // ？？？？？ 你在干什么
+                    "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0"
+                }
+
+            });
             logger.debug(`API Response  => ${tid} ` + options.endpoint);
             let data=undefined;
             try {
                 data = await response.json();
                 if (data.message === "认证失败" || data.message === "授权失败") {
+                    logger.error("认证失败");
                     return Promise.reject("认证失败")
                 }
                 if (options.processResponse) {
@@ -198,8 +200,8 @@ export function JoinEvent(client: Client, eventId: string | number): Promise<any
         formData: (function () {
             const formData = new FormData();
             const time = Math.floor(Date.now() / 1000);
-            formData.append('id', eventId + "");
-            formData.append('time', time + "");
+            formData.append('id', eventId+"");
+            formData.append('time', time.toString());
             formData.append('sign', sign(`${client.userinfo?.uid}`, eventId));
             return formData;
         })(),

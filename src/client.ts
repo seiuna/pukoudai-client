@@ -454,24 +454,9 @@ export function createClient(username: StrNum,  school: string,password: StrNum)
 export async function createClient(username?: StrNum, school?: string, password?: StrNum, qrcodeToken?: string): Promise<Client> {
     const client: Client = new ClientImp();
     await callSchoolList();
-    if (qrcodeToken) {
-        return await client.login(qrcodeToken);
-    } else {
-        if(!password){
-            logger.debug(`尝试使用本地缓存创建客户端 =>${username}`)
-            return  await createClientByCache(username as string, schoolCache2[school as string]);
 
-        }else {
-            try {
-                logger.debug(`尝试使用本地缓存创建客户端 =>${username}`)
-                return await createClientByCache(username as string, schoolCache2[school as string]);
-            }catch (err){
-                logger.debug(`本地缓存创建客户端失败 =>${username}`)
                 return await client.login(username, password, school);
-            }
-        }
 
-    }
 }
 
 /**

@@ -4,7 +4,14 @@ import * as Log4js from "log4js"
 
 //学校名 > 标识 例如 南京工程学院 > @njit.com
 export let schoolCache: any | undefined;
+export let schoolCache2: any | undefined;
 
+ let schoolMap={}
+
+export const getSchoolMap = () => {
+    return schoolMap;
+
+}
 
 export const requestOptions = {
     method: 'POST',
@@ -28,12 +35,19 @@ export const callSchoolList = async (): Promise<any> => {
         schoolCache = data.reduce((cache: any, school: any) => {
             if (school) {
                 cache[school.name] = school.email;
-                cache[school.school] = school.email;
-                cache[school.email] = school.school;
+
             }
             return cache;
         }, {});
+        schoolCache2 = data.reduce((cache: any, school: any) => {
+            if (school) {
+                cache[school.school] = school.email;
+                cache[school.email] = school.school;
 
+            }
+            return cache;
+        }, {});
+        schoolMap=Object.assign(schoolCache,schoolCache2);
         return schoolCache;
     } catch (error) {
         console.error('获取学校列表失败:', error);
