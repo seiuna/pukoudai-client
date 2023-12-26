@@ -238,7 +238,7 @@ export class ClientBase implements Client {
         if (Date.now() < this.joinDelay) {
             return {status: false, data: "操作过于频繁，请稍候再试？"};
         }
-        this.joinDelay = Date.now() + 1000 * 2;
+        this.joinDelay = Date.now() + 1000 * 3;
         return await JoinEvent(this, eventId).then((data) => {
 
             if (data.msg.includes("记得准时签到哦~")) {
