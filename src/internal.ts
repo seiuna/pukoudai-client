@@ -39,6 +39,11 @@ export async function Login(client: Client, school: StrNum, password: StrNum, us
             return formData;
         })(),
         processResponse: (data) => {
+
+
+
+
+
             return data;
         },
     });
@@ -74,10 +79,21 @@ export async function CallAPI(client: Client|undefined, options: {
                 headers:{
                     // ？？？？？ 你在干什么
                     "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0"
+                    ,"Referer":"https://pocketuni.net/",
+                    "Origin":"https://pocketuni.net",
+                    "Cookie":(()=>{
+                        return  client?client.cookie:"";
+                    })()
                 }
 
             });
             logger.debug(`API Response  => ${tid} ` + options.endpoint);
+
+            //设置回cookie 以防万一
+            const cookies = response.headers.get('Set-Cookie');
+            if(client&&cookies){
+                client.cookie=cookies;
+            }
             let data=undefined;
             try {
                 data = await response.json();
@@ -99,7 +115,7 @@ export async function CallAPI(client: Client|undefined, options: {
             return Promise.reject("API请求失败");
         }
     } else {
-        logger.error("API请求失败: ");
+        logger.error("API请求失败: " + "未登录");
         return Promise.reject("未登录");
     }
 }

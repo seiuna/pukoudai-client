@@ -56,6 +56,7 @@ export declare class Client {
     oauth_token: string | undefined;
     oauth_token_secret: string | undefined;
     options: ClientOption;
+    cookie: string;
     originLoginData: any;
     userdataPath: string | undefined;
     //登录
@@ -118,6 +119,7 @@ export class ClientBase implements Client {
     oauth_token: string | undefined;
     oauth_token_secret: string | undefined;
     school: SchoolInfo | undefined;
+    cookie: string=""
     options: ClientOption = {
         cacheTime: 1000 * 60 * 4,
         usecache: true
