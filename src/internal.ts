@@ -2,7 +2,6 @@ import * as Log4js from "log4js";
 import {Client} from "./client";
 import {StrNum} from "./entity/entities";
 import {sign} from "./o/sign";
-import {callAPI} from "./o/api";
 
 const logger = Log4js.getLogger("API")
 
@@ -25,6 +24,15 @@ export async function SchoolList(): Promise<any> {
     });
 
 }
+
+/**
+ * 使用账户密码登录
+ * @param client
+ * @param school
+ * @param password
+ * @param username
+ * @constructor
+ */
 export async function Login(client: Client, school: StrNum, password: StrNum, username: StrNum): Promise<any> {
     return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Sitelist&act=login",
@@ -38,11 +46,16 @@ export async function Login(client: Client, school: StrNum, password: StrNum, us
             formData.append("email", username.toString() + school.toString());
             return formData;
         })(),
-        processResponse: (data) => {
+        processResponse: (data,response) => {
 
 
 
 
+            //设置回cookie 以防万一
+            const cookies = response.headers.get('Set-Cookie');
+            if(client&&cookies){
+                client.cookie=cookies;
+            }
 
             return data;
         },
@@ -54,7 +67,7 @@ export async function CallAPI(client: Client|undefined, options: {
     login: boolean,
     formData?: FormData,
     additionalFormData?: (formData: FormData, client: Client) => void,
-    processResponse?: (data: any) => any,
+    processResponse?: (data: any,response:Response) => any,
 }): Promise<any> {
     if ( !options.login||client===undefined||client.userinfo !== undefined) {
         const formData = options.formData || new FormData();
@@ -89,11 +102,6 @@ export async function CallAPI(client: Client|undefined, options: {
             });
             logger.debug(`API Response  => ${tid} ` + options.endpoint);
 
-            //设置回cookie 以防万一
-            const cookies = response.headers.get('Set-Cookie');
-            if(client&&cookies){
-                client.cookie=cookies;
-            }
             let data=undefined;
             try {
                 data = await response.json();
@@ -102,7 +110,7 @@ export async function CallAPI(client: Client|undefined, options: {
                     return Promise.reject("认证失败")
                 }
                 if (options.processResponse) {
-                    return options.processResponse(data);
+                    return options.processResponse(data,response);
                 }
             }catch (err){
                 logger.error("服务器死了", err);
@@ -120,6 +128,12 @@ export async function CallAPI(client: Client|undefined, options: {
     }
 }
 
+/**
+ * 使用二维码登录
+ * @param client
+ * @param token
+ * @constructor
+ */
 export function Qrcode(client: Client, token: string): Promise<any> {
     return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Sitelist&act=pollingLogin&0",
@@ -129,12 +143,22 @@ export function Qrcode(client: Client, token: string): Promise<any> {
             formData.append("token", token);
             return formData;
         })(),
-        processResponse: (data) => {
+        processResponse: (data,response) => {
+            const cookies = response.headers.get('Set-Cookie');
+            if(client&&cookies){
+                client.cookie=cookies;
+            }
             return data;
         },
     });
 }
 
+/**
+ * 获取活动详情
+ * @param client
+ * @param eventId
+ * @constructor
+ */
 export function EventDetail(client: Client, eventId: string | number): Promise<any> {
     return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Event&act=queryActivityDetailById&",
@@ -184,11 +208,11 @@ export function CancelEvent(client: Client, eventId: string | number): Promise<a
 }
 
 /**
- *
+ *  获取活动我的活动列表
  * @param client
  * @param page
- * @param action lanuch|join
  * @param status 2 进行中 1 未开始 0 全部 4 已完结  5 审核中
+ * @param count
  * @constructor
  */
 export function MyEventList(client: Client, page: number,status:number,count:number): Promise<any> {
@@ -209,6 +233,12 @@ export function MyEventList(client: Client, page: number,status:number,count:num
     });
 }
 
+/**
+ * 加入一个活动
+ * @param client
+ * @param eventId
+ * @constructor
+ */
 export function JoinEvent(client: Client, eventId: string | number): Promise<any> {
     return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Event&act=join2&",

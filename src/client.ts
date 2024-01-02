@@ -17,7 +17,7 @@ import {MD5} from 'crypto-js';
 import {getLogger} from "log4js";
 import {EventUser, SchoolInfo, StudentInfo} from "./entity/user";
 import * as Fs from "fs";
-import {callSchoolList, schoolCache, schoolCache2} from "./o/api";
+import {callSchoolList} from "./o/api";
 
 const logger = getLogger("CLIENT");
 export let baseDir = process.cwd() + "/pu-client";
@@ -106,7 +106,7 @@ export declare class Client {
     groupList( page?: number,cache?:boolean):Promise<DataResult<Array<GroupData>>>;
     myGroupList( page?: number,cache?:boolean):Promise<DataResult<Array<GroupData>>>;
     favEvent(eventId: StrNum,action:"fav"|"cancel"): Promise<DataResult<string>>;
-    // groupEvent
+    // groupEvent(assnId: StrNum,action:"fav"|"cancel"): Promise<DataResult<string>>;
 
 }
 
