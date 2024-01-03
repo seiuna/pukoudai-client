@@ -106,6 +106,22 @@ export async function CallAPI(client: Client|undefined, options: {
             try {
                 data = await response.json();
                 if (data.message === "认证失败" || data.message === "授权失败") {
+                    if(client){
+                        if(client.options.reLogin){
+                        if(!client.processing){
+                                logger.debug("重新登录");
+                                if(client)
+                                    try {
+                                        await client.reLogin();
+
+                                    }catch (err){
+                                        logger.error(err)
+                                    }
+                                return CallAPI(client, options);
+                            }
+
+                        }
+                    }
                     logger.error("认证失败");
                     return Promise.reject("认证失败")
                 }

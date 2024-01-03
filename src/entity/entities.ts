@@ -41,7 +41,7 @@ export type StrNum = string | number;
 
 export interface ClientOption {
     cacheTime: number,
-    usecache: boolean,
+    reLogin:boolean,
 }
 
 export type Filter = {

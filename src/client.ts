@@ -48,7 +48,7 @@ const default_info:StudentInfo={
 
 }
 export declare class Client {
-
+    processing: boolean;
     userinfo: StudentInfo;
     joinDelay: number;
     school: SchoolInfo | undefined;
@@ -108,6 +108,10 @@ export declare class Client {
     favEvent(eventId: StrNum,action:"fav"|"cancel"): Promise<DataResult<string>>;
     // groupEvent(assnId: StrNum,action:"fav"|"cancel"): Promise<DataResult<string>>;
 
+    /**
+     * 重新登录 仅仅适用于使用账号密码登录的
+     */
+     reLogin(): Promise<this> ;
 }
 
 export class ClientBase implements Client {
@@ -122,9 +126,11 @@ export class ClientBase implements Client {
     cookie: string=""
     options: ClientOption = {
         cacheTime: 1000 * 60 * 4,
-        usecache: true
+        reLogin:false
     };
     userdataPath: string | undefined;
+    _password: StrNum ="";
+    _school: StrNum ="";
 
     async login(username?: StrNum, password?: StrNum, school?: string, qrcodeToken?: string): Promise<this> {
         if (this.processing) {
@@ -133,10 +139,13 @@ export class ClientBase implements Client {
         let rspData;
         this.processing = true
         if (password && username && school) {
+            this._password=password;
+            this._school=school;
             rspData = await Login(this, school, password, username).then((v) => {
                 return v
             })
         } else {
+            this.options.reLogin=false
             this.qrcodeToken = (username as string);
             try {
                 rspData = await this.poll().then((v) => {
@@ -269,6 +278,7 @@ export class ClientBase implements Client {
                 if(rtv.length%count!==0){
                     break;}
                 }catch (err){
+
                     console.log(err)
                     if(failed>5){
                         console.warn(`获取活动列表失败[${failed}]`)
@@ -412,6 +422,13 @@ export class ClientBase implements Client {
     }
 
     }
+   async reLogin(): Promise<this> {
+
+           return  await this.login(this.userinfo.sno,this._password,this._school+"");
+
+   }
+
+
 }
 
 export class ClientImp extends ClientBase {
