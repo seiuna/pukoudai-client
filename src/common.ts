@@ -1,11 +1,11 @@
 import {EventInfo, loginType} from "./o/entity";
-import {scheduleJob} from "node-schedule";
 import * as log4js from "log4js";
 import {baseDir, Client, ClientImp} from "./client";
-import {callSchoolList, requestOptions, schoolCache} from "./o/api";
+import {callSchoolList, schoolCache} from "./o/api";
 import {Qrcode} from "./utils"
 import * as Fs from "fs";
 import {SchoolList} from "./internal";
+
 const {AutoComplete, prompt, Select, Input, Password} = require('enquirer');
 const logger = log4js.getLogger("COMMON");
 Fs.mkdirSync(baseDir + "/userdata", {recursive: true})
@@ -40,45 +40,45 @@ export async function markEvent(client: Client, event: string | number | EventIn
 }
 
 const events: Array<{ client: Client, event: EventInfo, bps: boolean }> = [];
-const toTimeString = (time: number) => {
-    const ss: number = Math.floor(time / 1000) % 60;
-    const mm: number = Math.floor(time / 1000 / 60) % 60;
-    const hh: number = Math.floor(time / 1000 / 60 / 60);
-
-    return `${hh}小时 ${mm}分钟 ${ss}秒`;
-}
-
-const job = setInterval(function () {
-    events.forEach((v) => {
-            const time = new Date().getTime()-400;
-            const eventRegTime = Number.parseInt(String(v.event.regStartTimeStr)) * 1000;
-            if (time > eventRegTime) {
-                if (v.bps) {
-                    if (v.client.joinDelay < Date.now()) {
-                        v.client.joinEvent(v.event.actiId).then((data) => {
-                            if (data.status) {
-                                logger.info(`账户:${v.client.userinfo?.realname} 活动: ${v.event.name} 报名成功`)
-                                v.bps = false;
-                            } else {
-                                logger.warn(`账户:${v.client.userinfo?.realname} 活动: ${v.event.name} 报名失败 原因:${data.data}`)
-                                if (data.data === "报名人数已达限制，无法报名哦~") {
-                                    v.bps = false;
-                                }
-                            }
-                        }).catch()
-                    } else {
-                        logger.warn(`cd中...`)
-
-                    }
-                }
-
-            } else {
-                logger.mark(`账户:${v.client.userinfo?.realname} 活动: ${v.event.name} 未到签到时间还剩 ${toTimeString(eventRegTime - time)}`)
-            }
-
-        }
-    )
-},100);
+// const toTimeString = (time: number) => {
+//     const ss: number = Math.floor(time / 1000) % 60;
+//     const mm: number = Math.floor(time / 1000 / 60) % 60;
+//     const hh: number = Math.floor(time / 1000 / 60 / 60);
+//
+//     return `${hh}小时 ${mm}分钟 ${ss}秒`;
+// }
+//
+// const job = setInterval(function () {
+//     events.forEach((v) => {
+//             const time = new Date().getTime()-400;
+//             const eventRegTime = Number.parseInt(String(v.event.regStartTimeStr)) * 1000;
+//             if (time > eventRegTime) {
+//                 if (v.bps) {
+//                     if (v.client.joinDelay < Date.now()) {
+//                         v.client.joinEvent(v.event.actiId).then((data) => {
+//                             if (data.status) {
+//                                 logger.info(`账户:${v.client.userinfo?.realname} 活动: ${v.event.name} 报名成功`)
+//                                 v.bps = false;
+//                             } else {
+//                                 logger.warn(`账户:${v.client.userinfo?.realname} 活动: ${v.event.name} 报名失败 原因:${data.data}`)
+//                                 if (data.data === "报名人数已达限制，无法报名哦~") {
+//                                     v.bps = false;
+//                                 }
+//                             }
+//                         }).catch()
+//                     } else {
+//                         logger.warn(`cd中...`)
+//
+//                     }
+//                 }
+//
+//             } else {
+//                 logger.mark(`账户:${v.client.userinfo?.realname} 活动: ${v.event.name} 未到签到时间还剩 ${toTimeString(eventRegTime - time)}`)
+//             }
+//
+//         }
+//     )
+// },100);
 
 export const terminalClient = async (): Promise<Client> => {
     await callSchoolList()

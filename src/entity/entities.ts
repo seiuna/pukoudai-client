@@ -1,6 +1,5 @@
 import {Client} from "../client";
 import {TimeInterval} from "../o/common";
-import {SchoolEvent, Tag} from "./event";
 
 
 export class Clientable {
@@ -53,7 +52,7 @@ export type Filter = {
     // 实践分>
     credit?: number,
     // 过滤方法
-    func?: (event: SchoolEvent) => boolean
+    func?: (event: Event) => boolean
 }
 
 /**
@@ -71,6 +70,5 @@ export interface GroupData {
     category: string;
     cname0: string;
     depart: string;
-    tags: Tag[];
 }
 

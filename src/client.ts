@@ -1,152 +1,189 @@
-import {ClientOption, Filter, GroupData, StrNum} from "./entity/entities";
-import {EventInfo, SchoolEvent} from "./entity/event";
-import {
-    CancelEvent,
-    EventDetail,
-    EventList,
-    EventUsers, FavEvent, GroupList,
-    JoinEvent,
-    Login,
-    MSchoolInfo,
-    MUserInfo,
-    MyEventList, MyFavEvent, MyGroupList,
-    Qrcode
-} from "./internal";
-import {getMTime} from "./utils";
-import {MD5} from 'crypto-js';
+import {ClientOption, StrNum} from "./entity/entities";
+import {Login, MSchoolInfo, MUserInfo, Qrcode} from "./internal";
 import {getLogger} from "log4js";
-import {EventUser, SchoolInfo, StudentInfo} from "./entity/user";
+import {EventUser, SchoolInfo, Student} from "./entity/user";
 import * as Fs from "fs";
 import {callSchoolList} from "./o/api";
+import {Group} from "./entity/group";
+import {Event} from "./entity/event";
 
 const logger = getLogger("CLIENT");
 export let baseDir = process.cwd() + "/pu-client";
 
 Fs.mkdirSync(baseDir + "/userdata", {recursive: true})
 Fs.mkdirSync(baseDir + "/cache", {recursive: true})
-const default_info:StudentInfo={
-    amount2: "",
-    can_add_event: 0,
-    class: "",
-    credit: 0,
-    cx: "",
-    event_count: 0,
-    face: "",
-    group_count: 0,
-    is_init: "",
-    is_open_idcard: 0,
-    is_youke: 0,
-    jump_to_old: 0,
-    major: "",
-    realname: "",
-    sid: "",
-    sid1: "",
-    sno: "",
-    uid: 111,
-    year: "",
-    yx: ""
 
-}
-export declare class Client {
-    processing: boolean;
-    userinfo: StudentInfo;
-    joinDelay: number;
-    school: SchoolInfo | undefined;
-    qrcodeToken: string | undefined;
-    oauth_token: string | undefined;
-    oauth_token_secret: string | undefined;
-    options: ClientOption;
+/** 认证信息 */
+export interface AuthData {
+
+    /** 用户token */
+    oauth_token: string;
+    /** 用户token */
+    oauth_token_secret: string;
+    /** 用户cookie */
     cookie: string;
-    originLoginData: any;
-    userdataPath: string | undefined;
-    //登录
+    /** 用户id */
+    uid: string;
+    /** 学校id */
+    sid: string;
+    /** 学号 */
+    sno: string;
+    /** 使用二维码登录的token */
+    qrcodeToken: string;
+    /** 学校代码 */
+    schoolCode: string;
+    /** 用户名/学号 */
+    username: StrNum;
+    /** 密码 */
+    password: StrNum;
+    /** 是否正在登录 */
+    processing: boolean;
+}
+
+export interface Client {
+    store: any;
+    /** 认证信息 */
+    authData: AuthData
+    userinfo: Student;
+    schoolinfo: SchoolInfo;
+    options: ClientOption;
+
+    /** 是否登录中 */
+    isLogging(): boolean;
+
+    /** 二维码登录 */
     login(qrcodeToken: string): Promise<this>;
-    //登录
+
+    /** 账号密码登录 */
     login(username?: StrNum, password?: StrNum, school?: string): Promise<this>;
 
-
-
-
-    //加入活动
-    joinEvent(eventId: StrNum): Promise<DataResult<string>>;
-
-
-
-    //测试当前用户token是否有效
+    /** 测试token是否有效 */
     test(): Promise<void>;
 
-    //取消活动
-    cancelEvent(eventId: StrNum): Promise<DataResult<string>>;
+    /** 重新登录 仅仅适用于使用账号密码登录的*/
+    reLogin(): Promise<this>;
 
-    //更新用户信息
+    /** 更新用户信息 */
     updateInfo(): Promise<void>;
 
-    //以下函数都有缓存
+    /** 获取缓存信息 */
+    getCache<T>(serve: string, key: string): T;
 
+    /** 设置缓存信息 */
+    setCache<T>(serve: string, key: string, data: T): void;
 
+    /** 清除缓存信息 */
+    clearCache<T>(serve: string, key?: string): void;
 
+    /** 获取部落对象 */
+    getGroup(sessid: string, option?: Option): Promise<Group>;
 
-    //获取收藏的活动列表
-    myFavEventList(cache?:boolean): Promise<DataResult<Array<SchoolEvent>>>;
-    //获取活动详情
-    eventInfo(eventId: StrNum,cache?:boolean): Promise<DataResult<EventInfo>>;
-    //获取活动列表
-    eventList(type?:"已结束"|"进行中"|"审核中"|"未开始"|"全部",keyword?: string,count?:number, page?: number,cache?:boolean): Promise<DataResult<Array<SchoolEvent>>>;
-    /**
-     获取活动用户列表
+    /** 获取活动对象 */
+    getEvent(event: string, option?: Option): Promise<Event>;
+
+    /** 取消活动 */
+    cancelEvent(eventId: StrNum): Promise<DataResult<string>>;
+
+    /** 加入活动 */
+    joinEvent(eventId: StrNum): Promise<DataResult<string>>;
+
+    /** 收藏/取消收藏活动 */
+    favEvent(eventId: StrNum, action: "fav" | "cancel"): Promise<void>;
+
+    /** 获取活动列表 生成器
+     * 此函数获取的Event对象不完整 请使用getEvent获取完整对象
+     * @param type 活动类型
+     * @param keyword 关键字
+     * @param count 每页数量 默认 20
+     * @param page 页数 默认 -1 需要你自行判断是否已获取完 例如 events.length<count||events.length==0
+     */
+    eventList(type: "已结束" | "进行中" | "未开始" | "全部", keyword?: string, count?: number, page?: number): AsyncGenerator<Array<Event>>;
+
+    /** 获取我收藏的活动 默认一次性获取全部 生成器
+     *  此函数获取的Event对象不完整 请使用getEvent获取完整对象
+     *  @param page 页数 默认 -1
+     *  @param count 每页数量 默认 10
+     *  @param option 选项
+     */
+    myFavEventList(page?: number, count?: number, option?: Option): AsyncGenerator<Array<Event>>;
+
+    /** 获取我的活动 生成器
+     * 此函数获取的Event对象不完整 请使用getEvent获取完整对象
+     * @param type 活动类型
+     * @param count 每页数量 默认 10
+     * @param page 页数 默认 -1 需要你自行判断是否已获取完 例如 events.length<count||events.length==0
+     */
+    myEventList(type: "已结束" | "进行中" | "审核中" | "未开始" | "全部", page?: number, count?: number): AsyncGenerator<Array<Event>>;
+
+    /** 获取部落列表 生成器
+     *  此函数获取的Group对象不完整 请使用getGroup获取完整对象
+     *  @param page 页数 默认 -1
+     */
+    groupList(page?: number): AsyncGenerator<Array<Group>>;
+
+    /** 获取我加入的部落列表 生成器
+     * 此函数获取的Group对象不完整 请使用getGroup获取完整对象
+     * @param page 页数 默认 -1
+     */
+    myGroupList(page?: number): AsyncGenerator<Array<Group>>;
+
+    /** 获取活动用户列表 生成器
      * @param eventId 活动id
-     * @param page 需要多少页的数据 默认获取全部的数据
-     * @param cache
      */
-    eventUsers(eventId:StrNum,page:number,cache?:boolean): Promise<DataResult<Array<EventUser>>>;
-
-    //获取我的活动列表
-    myEventList(type:"已结束"|"进行中"|"审核中"|"未开始"|"全部",page?:number,count?:number,filter?: Filter): Promise<DataResult<Array<SchoolEvent>>>;
-
-    groupList( page?: number,cache?:boolean):Promise<DataResult<Array<GroupData>>>;
-    myGroupList( page?: number,cache?:boolean):Promise<DataResult<Array<GroupData>>>;
-    favEvent(eventId: StrNum,action:"fav"|"cancel"): Promise<DataResult<string>>;
-    // groupEvent(assnId: StrNum,action:"fav"|"cancel"): Promise<DataResult<string>>;
-
-    /**
-     * 重新登录 仅仅适用于使用账号密码登录的
-     */
-     reLogin(): Promise<this> ;
+    eventUsers(eventId: StrNum): AsyncGenerator<Array<EventUser>>;
 }
 
-export class ClientBase implements Client {
-    joinDelay: number = -1;
-    originLoginData: any;
-    processing: boolean = false;
-    userinfo: StudentInfo=default_info;
-    qrcodeToken: string | undefined;
-    oauth_token: string | undefined;
-    oauth_token_secret: string | undefined;
-    school: SchoolInfo | undefined;
-    cookie: string=""
-    options: ClientOption = {
-        cacheTime: 1000 * 60 * 4,
-        reLogin:false
-    };
-    userdataPath: string | undefined;
-    _password: StrNum ="";
-    _school: StrNum ="";
+export class ClientImp implements Client {
+    store: any = {}
+    authData: AuthData = {
+        oauth_token: "",
+        oauth_token_secret: "",
+        cookie: "",
+        uid: "",
+        sid: "",
+        sno: "",
+        qrcodeToken: "",
+        schoolCode: "",
+        username: "",
+        password: "",
+        processing: false
+    }
+    options: ClientOption;
+    schoolinfo: SchoolInfo;
+    userinfo: Student;
+    readonly cacheMap: Map<string, any> = new Map<string, any>();
+
+
+    readonly catchGroup = Group.catch.bind(this);
+    readonly catchEvent = Event.catch.bind(this);
+    readonly cancelEventB = Event.cancelEvent.bind(this);
+    readonly joinEventB = Event.joinEvent.bind(this);
+    readonly eventListB = Event.eventList.bind(this);
+    readonly favEventB = Event.favEvent.bind(this);
+    readonly myEventListB = Event.myEventList.bind(this);
+    readonly myFavEventListB = Event.myFavEventList.bind(this);
+    readonly myGroupListB = Group.myGroupList.bind(this);
+    readonly groupListB = Group.groupList.bind(this);
+    readonly eventUsersB = Event.eventUsers.bind(this);
+
 
     async login(username?: StrNum, password?: StrNum, school?: string, qrcodeToken?: string): Promise<this> {
-        if (this.processing) {
+        if (this.authData.processing) {
             return Promise.reject("正在登录中");
         }
         let rspData;
-        this.processing = true
-        if (password && username && school) {
-            this._password=password;
-            this._school=school;
-            rspData = await Login(this, school, password, username).then((v) => {
+        this.authData.processing = true
+        if (password && username && school && qrcodeToken === undefined) {
+            this.options.reLogin = true;
+            this.authData.schoolCode = school;
+            this.authData.username = username;
+            this.authData.password = password;
+            rspData = await Login(this.authData, school, password, username).then((v) => {
                 return v
             })
         } else {
             this.options.reLogin=false
-            this.qrcodeToken = (username as string);
+            this.authData.qrcodeToken = (username as string);
             try {
                 rspData = await this.poll().then((v) => {
                     return v
@@ -157,24 +194,132 @@ export class ClientBase implements Client {
         }
         if (rspData.message === "success") {
             this.userinfo = rspData.content.user_info;
-            this.oauth_token = rspData.content.oauth_token;
-            this.oauth_token_secret = rspData.content.oauth_token_secret;
+            this.authData.oauth_token = rspData.content.oauth_token;
+            this.authData.oauth_token_secret = rspData.content.oauth_token_secret;
+            this.count = 30;
         } else {
+            this.options.reLogin = false
             return Promise.reject(rspData.message)
         }
-        this.processing = false
+        this.authData.processing = false
         await this.updateInfo();
         return this;
     }
 
     private count: number = 30;
+
+    async reLogin(): Promise<this> {
+        if (!this.options.reLogin) {
+            return Promise.reject("不支持重新登录")
+        }
+        return await this.login(this.authData.username, this.authData.password, this.authData.schoolCode + "");
+    }
+
+    async updateInfo(): Promise<void> {
+        try {
+            await MUserInfo(this.authData).then((data: any) => {
+                this.userinfo = new Student(Object.assign(data.content, this.userinfo));
+                this.authData.uid = this.userinfo.uid + "";
+                this.authData.sid = this.userinfo.sid + "";
+                this.authData.sno = this.userinfo.sno + "";
+
+
+            })
+            await MSchoolInfo(this.authData).then((data: any) => {
+                this.schoolinfo = data.content.school
+            })
+        }catch (e){
+            return Promise.reject(e)
+        }
+    }
+
+    isLogging(): boolean {
+        return this.authData.processing;
+    }
+
+    getCache<T>(serve: string, key: string): T {
+        return this.cacheMap.get(serve + "." + key);
+    }
+
+    setCache<T>(serve: string, key: string, data: T): void {
+        this.cacheMap.set(serve + "." + key, data);
+    }
+
+    clearCache(serve: string, key?: string): void {
+        this.cacheMap.delete(serve + "." + key);
+        if (key) {
+            this.cacheMap.forEach((value, key) => {
+                if (key.startsWith(serve)) {
+                    this.cacheMap.delete(key);
+                }
+            })
+        }
+    }
+
+    getGroup(sessid: string, option?: Option): Promise<Group> {
+        return this.catchGroup(sessid, option);
+
+    }
+
+    getEvent(event: string, option?: Option): Promise<Event> {
+        return this.catchEvent(event, option);
+
+    }
+
+    cancelEvent(eventId: StrNum): Promise<DataResult<string>> {
+        return this.cancelEventB(eventId);
+    }
+
+    joinEvent(eventId: StrNum): Promise<DataResult<string>> {
+        return this.joinEventB(eventId);
+    }
+
+    favEvent(eventId: StrNum, action: "fav" | "cancel"): Promise<void> {
+        return this.favEventB(eventId, action);
+
+    }
+
+    eventList(type: "已结束" | "进行中" | "未开始" | "全部", keyword: string, count: number, page: number): AsyncGenerator<Array<Event>> {
+        return this.eventListB(type, page, keyword, count);
+    }
+
+    myEventList(type: "已结束" | "进行中" | "审核中" | "未开始" | "全部", page: number, count: number): AsyncGenerator<Array<Event>> {
+        return this.myEventListB(type, page, count);
+    }
+
+    myFavEventList(page?: number, count?: number, option?: Option): AsyncGenerator<Array<Event>> {
+        return this.myFavEventListB(page, count, option);
+
+    }
+
+    groupList(page?: number): AsyncGenerator<Array<Group>> {
+        return this.groupListB(page);
+    }
+
+    myGroupList(page?: number): AsyncGenerator<Array<Group>> {
+        return this.myGroupListB(page);
+    }
+
+    eventUsers(eventId: StrNum): AsyncGenerator<Array<EventUser>> {
+        return this.eventUsersB(eventId);
+
+    }
+
+    test(): Promise<void> {
+        try {
+            return this.updateInfo();
+        } catch (e) {
+            return Promise.reject(e);
+        }
+    }
+
     private async poll() {
         while (true) {
             this.count--;
             if (this.count < 0) {
                 return Promise.reject("二维码超时")
             }
-            const data = await Qrcode(this, this.qrcodeToken + "").then((data) => {
+            const data = await Qrcode(this.authData).then((data) => {
 
                 return data;
             })
@@ -185,331 +330,31 @@ export class ClientBase implements Client {
         }
     }
 
-    /**
-     *
-     * @param eventId
-     * @return data 未加入该活动 ok
-     */
-    async cancelEvent(eventId: StrNum): Promise<DataResult<string>> {
-        try {
-            return await CancelEvent(this, eventId).then((data) => {
-
-                if (data.msg.includes("用户不存在")) {
-                    return {status: true, data: '未加入该活动'};
-                }
-                return {status: true, data: "ok"};
-
-            })
-        }catch (err){
-            return {status: false, data: ""};
-
-        }
-
-    }
-
-
-    async test(): Promise<void> {
-        return await MUserInfo(this).catch((e) => {
-            return Promise.reject(e);
-        })
-    }
-
-    async updateInfo(): Promise<void> {
-        try {
-            await MUserInfo(this).then((data: any) => {
-                this.userinfo = Object.assign(data.content, this.userinfo)
-            })
-            await MSchoolInfo(this).then((data: any) => {
-                this.school = data.content.school
-            })
-            this.userdataPath = baseDir + "/userdata/" + `${this.userinfo?.sno}_${this.userinfo?.sid}`;
-            Fs.mkdirSync(this.userdataPath, {recursive: true})
-            const o:any={};
-            o.userinfo = this.userinfo;
-            o.oauth_token = this.oauth_token;
-            o.oauth_token_secret = this.oauth_token_secret;
-            // o.school = this.school;
-            // o.userdataPath = baseDir + "/userdata/" + `${sno}_${school}`;
-            Fs.writeFileSync(this.userdataPath + "/userinfo.json", JSON.stringify(this))
-        }catch (e){
-            return Promise.reject(e)
-        }
-    }
-    async favEvent(eventId: StrNum,action:"fav"|"cancel"): Promise<DataResult<string>> {
-        try {
-            return  await FavEvent(this, eventId, action).then((data) => {
-                return {status: true, data: data.msg};
-            })
-        }catch (err){
-            return {status: false, data: ''};
-
-        }
-    }
-    async joinEvent(eventId: StrNum): Promise<DataResult<string>> {
-        if (Date.now() < this.joinDelay) {
-            return {status: false, data: "操作过于频繁，请稍候再试？"};
-        }
-        this.joinDelay = Date.now() + 1000 * 3;
-        return await JoinEvent(this, eventId).then((data) => {
-
-            if (data.msg.includes("记得准时签到哦~")) {
-                return {status: true, data: data.msg};
-            }
-            // if(data.msg.includes("操作过于频繁，请稍候再试")){
-            //     return "ok";
-            // }
-            return {status: false, data: data.msg};
-        })
-    }
-
-    async eventList(type:"已结束"|"进行中"|"未开始"|"全部"="进行中",keyword: string="",count:number=40, page: number=-1,cache:boolean=true): Promise<DataResult<Array<SchoolEvent>>> {
-        let rtv:SchoolEvent[]=[];
-        const cyc=page === -1;
-        let current=1;
-      let failed=0;
-      const status=this.smap[type]
-            while(cyc||current<=page){
-                try {
-                    if(current>page&&!cyc){
-                        break;
-                    }
-                rtv.push(...(await EventList(this,status,current,count,keyword)).content);
-                current++;
-                if(rtv.length%count!==0){
-                    break;}
-                }catch (err){
-
-                    console.log(err)
-                    if(failed>5){
-                        console.warn(`获取活动列表失败[${failed}]`)
-                        return {status: false, data: rtv};
-                    }
-                    failed++;
-                }
-            }
-
-        return {status: true, data: rtv};
-
-
-    }
-
-    async eventInfo(eventId: StrNum,cache:boolean=true): Promise<DataResult<EventInfo>> {
-        let rtv:any=[];
-        try{
-            rtv = (await EventDetail(this, eventId));
-            return {status:true,data:rtv.content}
-
-        }catch (err){
-            return {status:false,data:rtv}
-        }
-    }
-    async myFavEventList(cache:boolean=true): Promise<DataResult<Array<SchoolEvent>>> {
-        let rtv:any=[];
-        try{
-             rtv = (await MyFavEvent(this,100000));
-            return {status:true,data:rtv}
-
-        }catch (err){
-            return {status:false,data:rtv}
-        }
-
-    }
-
-    readonly smap:any={
-        // 2 进行中 1 未开始 0 全部 4 已完结  5 审核中
-
-        进行中:2,
-        未开始:1,
-        全部:0,
-        已完结:4,
-        审核中:5,
-        已结束:3
-    }
-    async myEventList(type:"已结束"|"进行中"|"审核中"|"未开始"|"全部", page:number=1, count:number=(this.userinfo.event_count*100<10?50:this.userinfo.event_count*100), filter?: Filter): Promise<DataResult<Array<SchoolEvent>>>{
-
-        try{
-            const status=this.smap[type]
-            const rtv= await MyEventList(this,page,status,count);
-            return {status:true,data:rtv}
-
-        }catch (err){
-            return Promise.reject(err)
-        }
-
-    }
-    async eventUsers(eventId: StrNum, page: number=-1, cache?: boolean): Promise<DataResult<Array<EventUser>>> {
-        const rtv=[];
-        let count=page==-1?1000:page;
-        let failed=1;
-        for (let i = 1; i < count; i++) {
-         try {
-             const data = await EventUsers(this, eventId,i).then((data: any) => {
-                 return data.content;
-             })
-             if(data.length==0){
-                 break;
-             }
-             rtv.push(...data);
-
-         }catch (err){
-             if (failed>=5){
-                 logger.warn(`获取活动用户列表失败[${failed}]`)
-                 return {status: false, data: rtv};
-
-             }
-             failed++;
-             i--;
-         }
-        }
-        return {status: true, data: rtv};
-
-    }
-    async groupList(page = -1, cache = true): Promise<DataResult<Array<GroupData>>> {
-
-        const promises: Promise<unknown>[] = [];
-        let i=1;
-        const data=await GroupList(this, i);
-        const count = page == -1 ? data.content.totalPages : page;
-        logger.debug("总页数:"+count);
-        for ( i= 2; i <= count; i++) {
-            promises.push(GroupList(this, i));
-        }
-
-  try {
-      const results = await Promise.allSettled(promises);
-      const rtv: GroupData[] = [];
-
-      results.forEach((result) => {
-          if (result.status === 'fulfilled') {
-              const data = (result as PromiseFulfilledResult<any>).value;
-              rtv.push(...data.content.data);
-
-          }
-      });
-      return { status: true, data: rtv };
-
-  }catch (err){
-      return { status: false, data: [] };
-
-  }
-    }
-
-    async myGroupList(page = -1, cache = true): Promise<DataResult<Array<GroupData>>> {
-        const count = page === -1 ? 4 : page;
-        const promises: Promise<unknown>[] = [];
-
-        for (let i = 1; i <= count; i++) {
-            promises.push(MyGroupList(this, i));
-        }
-
-    try {
-        const results = await Promise.allSettled(promises);
-        const rtv: GroupData[] = [];
-
-        results.forEach((result) => {
-            if (result.status === 'fulfilled') {
-                const data = (result as PromiseFulfilledResult<any>).value;
-                if (data.content&&data.content.length < 10) {
-                    rtv.push(...data.content);
-                }
-            }
-        });
-        return { status: true, data: rtv };
-
-    }catch (err){
-        return { status: false, data: [] };
-
-    }
-
-    }
-   async reLogin(): Promise<this> {
-
-           return  await this.login(this.userinfo.sno,this._password,this._school+"");
-
-   }
-
 
 }
 
-export class ClientImp extends ClientBase {
-    readonly cacheHandler = {
-        cache: new Map<string, CacheData>(),
-        apply: async function (target: any, thisArg: ClientImp, args: Array<any>) {
-            const hash = MD5(target.name + JSON.stringify(args)).toString().toLowerCase();
-            const data = this.cache.get(hash);
-            if (data !== undefined && getMTime() - data.time < thisArg.options.cacheTime&&args[args.length-1]) {
-                logger.debug(`从缓存 => ${target.name} ${thisArg.userinfo?.sno}`)
-                return data.data;
-            } else {
-                if(args[args.length-1]){
-                    logger.debug(`缓存不存在 => ${target.name}`)
-                }
-
-                const rv = target.bind(thisArg)(args[0], args[1], args[2], args[3], args[4], args[5])
-                this.cache.set(hash, {time: getMTime() + thisArg.options.cacheTime, data: rv})
-                return rv;
-            }
-
-        },
-        withCache: (any: any) => {
-            return new Proxy(any, this.cacheHandler);
-        }
-    };
-    readonly eventList = this.cacheHandler.withCache(super.eventList);
-    readonly eventInfo = this.cacheHandler.withCache(super.eventInfo);
-    // readonly collectEventList = this.cacheHandler.withCache(super.collectEventList);
-    readonly eventUsers = this.cacheHandler.withCache(super.eventUsers);
-    readonly  groupList=this.cacheHandler.withCache(super.groupList);
-    readonly  myGroupList=this.cacheHandler.withCache(super.myGroupList);
-
-
-
+const defaultOption: ClientOption = {
+    reLogin: false,
+    cacheTime: 1000 * 60 * 60 * 24 * 7
 }
 
-export function createClient(qrcodeToken: string): Promise<Client>;
-export function createClient(username: StrNum,  school: string): Promise<Client>;
-export function createClient(username: StrNum,  school: string,password: StrNum): Promise<Client>;
-
-export async function createClient(username?: StrNum, school?: string, password?: StrNum, qrcodeToken?: string): Promise<Client> {
+export async function createClient(username: StrNum, school: string, password: StrNum, option: ClientOption = defaultOption): Promise<Client> {
     const client: Client = new ClientImp();
     await callSchoolList();
+    client.options = option;
 
-                return await client.login(username, password, school);
+    return await client.login(username, password, school);
 
 }
 
-/**
- * 从缓存中创建client
- * @param sno 学号
- * @param school 学校id
- * return client
- * return Promise.reject("不存在"||"认证失败")
- */
-export async function createClientByCache(sno: StrNum, school: StrNum) {
-    if (!Fs.existsSync(baseDir + "/userdata/" + `${sno}_${school}` + "/userinfo.json")) {
-        return Promise.reject("认证失败")
-    }
+export async function createClientByQrcode(qrcodeToken: string, option: ClientOption = defaultOption): Promise<Client> {
     const client: Client = new ClientImp();
-    const cac = JSON.parse(Fs.readFileSync(baseDir + "/userdata/" + `${sno}_${school}` + "/userinfo.json").toString());
-    // client.userinfo = cac.userinfo;
-    client.oauth_token = cac.oauth_token;
-    client.oauth_token_secret = cac.oauth_token_secret;
-    client.userinfo=cac.userinfo;
-    // client.school = cac.school;
-    // client.userdataPath = baseDir + "/userdata/" + `${sno}_${school}`;
-    try {
-        await client.test();
-        logger.debug(`本地缓存创建客户端成功 =>${sno}`)
-        await client.updateInfo();
-        return client;
-    } catch (e) {
-        return Promise.reject("认证失败")
-    }
-
+    await callSchoolList();
+    client.options = option;
+    return await client.login(qrcodeToken);
 }
 
-
-interface CacheData {
+export interface CacheData {
     time: number;
     data: any;
 }
@@ -520,14 +365,23 @@ export interface DataResult<T> {
     data: T;
 }
 
-export function setBaseDir(path: string) {
-    baseDir = process.cwd() + "/" + path;
+/**
+ * 用于各种获取操作的设置 如缓存
+ */
+export interface Option {
+    cache: boolean
 }
 
-export function getBaseDir() {
-    return baseDir;
+export const default_Option: Option = {
+    cache: true
 }
+export const statusMap: any = {
+    // 2 进行中 1 未开始 0 全部 4 已完结  5 审核中
 
-
-
-
+    进行中: 2,
+    未开始: 1,
+    全部: 0,
+    已完结: 4,
+    审核中: 5,
+    已结束: 3
+}

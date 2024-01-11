@@ -22,18 +22,16 @@
   "author": "",
   "license": "GPL-3.0 license",
   "dependencies": {
+    "@types/lodash": "^4.14.202",
     "chalk": "^5.3.0",
-    "copy-paste": "^1.5.3",
     "crypto-js": "^4.2.0",
     "enquirer": "^2.4.1",
+    "lodash": "^4.17.21",
     "log4js": "^6.9.1",
-    "nconf": "^0.12.1",
     "node-schedule": "^2.1.1",
     "open": "^8.4.2",
     "qrcode": "^1.5.3",
-    "qrcode-reader": "^1.0.4",
-    "sequelize": "^6.33.0",
-    "sequelize-transparent-cache": "^2.3.0"
+    "qrcode-reader": "^1.0.4"
   },
   "devDependencies": {
     "@types/copy-paste": "^1.1.33",

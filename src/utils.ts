@@ -7,7 +7,13 @@ export const getMTime = () => {
     return Math.floor(Date.now() / 1000)
 }
 
-
+export function withMapper(fun: () => any) {
+    return new Proxy({}, {
+        get(target: any, p: PropertyKey, receiver: any): any {
+            return fun();
+        }
+    })
+}
 export const Qrcode = async (): Promise<{
     token: string;
     qrcode: string;

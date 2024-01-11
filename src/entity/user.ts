@@ -1,6 +1,7 @@
 import {UserInfo} from "./entities";
+import {Client} from "../client";
 
-export interface StudentInfo extends UserInfo {
+export class Student implements UserInfo {
     // 头像链接
     face: string;
     // 真实姓名
@@ -25,6 +26,29 @@ export interface StudentInfo extends UserInfo {
     event_count: number;
     // 部落数量
     group_count: number;
+    can_add_event: number;
+    is_init: string;
+    is_open_idcard: number;
+    is_youke: number;
+    jump_to_old: number;
+    sid: string;
+    sid1: string;
+    uid: string | number;
+    c: Client;
+
+    constructor(data: UserInfo) {
+        Object.assign(this, data);
+    }
+
+    async uploadFace(data: Buffer) {
+
+    }
+
+    /** 更新我的用户信息 */
+    async update() {
+
+    }
+
 }
 
 export interface SchoolInfo {
@@ -37,7 +61,8 @@ export interface SchoolInfo {
 }
 
 
-export interface EventUser{
+export class EventUser {
+    c: Client;
     id: string;
     uid: string;
     eventId: string;
@@ -45,9 +70,13 @@ export interface EventUser{
     uface: string;
     checkStatus: number;
     isVip: number;
-    tags: any[]; // Assuming tags can be an array of any type
+    tags: any[];
     /**
-    @Description("1:管理员 2:签到员 3:普通成员")
+     @Description("1:管理员 2:签到员 3:普通成员")
      */
     userStatus: number;
+
+    constructor(data: any) {
+        Object.assign(this, data);
+    }
 }
