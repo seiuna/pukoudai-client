@@ -77,11 +77,10 @@ export async function CallAPI(authData: AuthData | undefined, options: {
         id++;
         logger.debug(`Called API  => ${tid} ` + options.endpoint)
         try {
-            const response = await fetch(root + options.endpoint,{
+            const response = await fetch((options.endpoint.startsWith("https") ? "" : root) + options.endpoint, {
                 body: formData,
                 method: 'POST',
                 headers:{
-                    // ？？？？？ 你在干什么
                     "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0"
                     ,"Referer":"https://pocketuni.net/",
                     "Origin":"https://pocketuni.net",
@@ -92,14 +91,14 @@ export async function CallAPI(authData: AuthData | undefined, options: {
 
             });
             logger.debug(`API Response  => ${tid} ` + options.endpoint);
-
             let data=undefined;
             try {
-                data = await response.json();
-                if (data.message === "认证失败" || data.message === "授权失败") {
+                if (response.status === 401) {
                     logger.error("认证失败");
                     return Promise.reject("认证失败")
                 }
+                data = await response.json();
+
                 if (options.processResponse) {
                     return options.processResponse(data,response);
                 }
@@ -107,7 +106,6 @@ export async function CallAPI(authData: AuthData | undefined, options: {
                 logger.error("服务器死了", err);
                 return Promise.reject("服务器死了")
             }
-
             return data;
         } catch (error) {
             logger.error("API请求失败:", error);
@@ -399,6 +397,16 @@ export function GroupDetail(authData: AuthData, sessid: StrNum): Promise<any> {
         processResponse: (data) => {
             // 因为没有id 所以手动加上
             data.content.id = sessid;
+            return data;
+        },
+    });
+}
+
+export function PersonalCenter(authData: AuthData): Promise<any> {
+    return CallAPI(authData, {
+        endpoint: `https://pocketuni.net/api/User/personalCenter?oauth_token=${authData.oauth_token}&oauth_token_secret=${authData.oauth_token_secret}`,
+        login: true,
+        processResponse: (data) => {
             return data;
         },
     });
