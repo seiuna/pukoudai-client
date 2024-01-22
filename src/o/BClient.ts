@@ -1,18 +1,8 @@
-import {
-    callEventInfo,
-    callEventList,
-    callJoinEvent,
-    callPassword,
-    callQrcode1,
-    requestOptions,
-    schoolCache
-} from "./api";
+import {callEventInfo, callEventList, callJoinEvent, callPassword, callQrcode1, requestOptions} from "./api";
 import * as QRCode from "qrcode";
-import {Sequelize} from "sequelize";
 import {EventInfo, loginType, SchoolEvent, UserData} from "./entity";
-import * as Log4js from "log4js"
+import * as log4js from "log4js"
 import {getMTime, markEvent, TimeInterval} from "./common";
-import * as log4js from 'log4js';
 import * as Fs from 'fs'
 
 

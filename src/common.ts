@@ -12,32 +12,32 @@ Fs.mkdirSync(baseDir + "/userdata", {recursive: true})
 Fs.mkdirSync(baseDir + "/cache", {recursive: true})
 /*
 不属于模块函数
- */
-export async function markEvent(client: Client, event: string | number | EventInfo) {
-    let eventObj: EventInfo;
-    if (typeof event === 'string' || typeof event === 'number') {
-        eventObj = await client.eventInfo(event).then((d) => {
-            return d.data;
-        })
-    } else {
-        eventObj = event;
-    }
-    const time = new Date().getTime()
-    const eventRegEndTime = Number.parseInt(String(eventObj.regEndTimeStr)) * 1000;
-    if (eventRegEndTime < time) {
-        logger.warn(`活动: ${eventObj.name}报名已经结束无法加入!`)
-    } else {
-        if (eventObj.name) {
-            logger.info("已添加到任务列表:" + eventObj.name);
-            events.push({client: client, event: eventObj, bps: true});
-        } else {
-            logger.warn("活动不存在")
-        }
-
-    }
-
-
-}
+//  */
+// export async function markEvent(client: Client, event: string | number | EventInfo) {
+//     let eventObj: EventInfo;
+//     if (typeof event === 'string' || typeof event === 'number') {
+//         eventObj = await client.eventInfo(event).then((d) => {
+//             return d.data;
+//         })
+//     } else {
+//         eventObj = event;
+//     }
+//     const time = new Date().getTime()
+//     const eventRegEndTime = Number.parseInt(String(eventObj.regEndTimeStr)) * 1000;
+//     if (eventRegEndTime < time) {
+//         logger.warn(`活动: ${eventObj.name}报名已经结束无法加入!`)
+//     } else {
+//         if (eventObj.name) {
+//             logger.info("已添加到任务列表:" + eventObj.name);
+//             events.push({client: client, event: eventObj, bps: true});
+//         } else {
+//             logger.warn("活动不存在")
+//         }
+//
+//     }
+//
+//
+// }
 
 const events: Array<{ client: Client, event: EventInfo, bps: boolean }> = [];
 // const toTimeString = (time: number) => {
