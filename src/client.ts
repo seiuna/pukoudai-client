@@ -1,5 +1,5 @@
 import {ClientOption, StrNum} from "./entity/entities";
-import {Login, MSchoolInfo, MUserInfo, Qrcode} from "./internal";
+import {Login, MSchoolInfo, MUserInfo, PersonalCenter, Qrcode} from "./internal";
 import {getLogger} from "log4js";
 import {EventUser, SchoolInfo, Student} from "./entity/user";
 import * as Fs from "fs";
@@ -48,6 +48,7 @@ export interface Client {
     schoolinfo: SchoolInfo;
     options: ClientOption;
 
+    // on(event: "auth-failed", listener: (client: Client) => void): this;
     /** 是否登录中 */
     isLogging(): boolean;
 
@@ -152,8 +153,6 @@ export class ClientImp implements Client {
     schoolinfo: SchoolInfo;
     userinfo: Student;
     readonly cacheMap: Map<string, any> = new Map<string, any>();
-
-
     readonly catchGroup = Group.catch.bind(this);
     readonly catchEvent = Event.catch.bind(this);
     readonly cancelEventB = Event.cancelEvent.bind(this);
@@ -222,11 +221,12 @@ export class ClientImp implements Client {
                 this.authData.uid = this.userinfo.uid + "";
                 this.authData.sid = this.userinfo.sid + "";
                 this.authData.sno = this.userinfo.sno + "";
-
-
             })
             await MSchoolInfo(this.authData).then((data: any) => {
                 this.schoolinfo = data.content.school
+            })
+            await PersonalCenter(this.authData).then((data: any) => {
+                this.userinfo = new Student(Object.assign(data.content.user_info, this.userinfo));
             })
         }catch (e){
             return Promise.reject(e)
@@ -319,10 +319,7 @@ export class ClientImp implements Client {
             if (this.count < 0) {
                 return Promise.reject("二维码超时")
             }
-            const data = await Qrcode(this.authData).then((data) => {
-
-                return data;
-            })
+            const data = await Qrcode(this.authData);
             if (data.message === "success") {
                 return data;
             }

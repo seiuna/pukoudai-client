@@ -35,7 +35,39 @@ export class Student implements UserInfo {
     sid1: string;
     uid: string | number;
     c: Client;
-
+    uname: string;                 // 用户名
+    sign: string;                  // 个性签名或描述
+    mobile: string;                // 手机号码
+    sex: string;                   // 性别
+    event_level_label: string;     // 用户活动等级标签
+    user_type: string;             // 用户类型
+    student_id: string;            // 学生ID
+    modify_sex: string;            // 修改性别状态
+    school: string;                // 学校名称
+    college: string;               // 学院名称
+    city: string;                  // 城市
+    city_code: string;             // 城市代码
+    is_test: string;               // 测试状态
+    following_count: string;       // 关注的用户数
+    follower_count: string;        // 粉丝数
+    year_system: string;           // 学年制度
+    outlook: string;               // 外貌或形象
+    native_place: any;     // 籍贯信息
+    idcard_no: string;             // 身份证号码
+    idcard_type_label: string;     // 身份证类型标签
+    privacy_policy: string;        // 隐私政策
+    is_use_tag: string;            // 使用标签状态
+    is_notify: string;             // 通知状态
+    is_security_question: string;  // 安全问题状态
+    is_verified: string;           // 认证状态
+    verified: Record<string, any>; // 认证信息
+    revoke: string;                // 撤销状态
+    check_grad: string;            // 检查毕业状态
+    is_bind: string;               // 绑定状态
+    is_bind_socialite: string;     // 绑定社交账号状态
+    verify: string;                // 验证状态
+    school_suffix: string;         // 学校后缀
+    is_open_poi: string;           // 开放POI状态
     constructor(data: UserInfo) {
         Object.assign(this, data);
     }

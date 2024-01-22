@@ -1,6 +1,6 @@
 {
   "name": "pu-client",
-  "version": "1.0.24",
+  "version": "1.1.2",
   "description": "pocket universe client",
   "main": "dist/index.js",
   "module": "./dist/index.mjs",
@@ -26,6 +26,7 @@
     "chalk": "^5.3.0",
     "crypto-js": "^4.2.0",
     "enquirer": "^2.4.1",
+    "form-data": "^4.0.0",
     "lodash": "^4.17.21",
     "log4js": "^6.9.1",
     "node-schedule": "^2.1.1",
