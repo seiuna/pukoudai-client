@@ -214,7 +214,6 @@ export class Event {
             if (data.msg.includes("记得准时签到哦~")) {
                 return {status: true, data: "报名成功"};
             }
-
             if (data.msg.includes("报名时间已结束，无法报名哦~")) {
                 return {status: false, data: "报名时间已结束"};
             }
@@ -226,6 +225,9 @@ export class Event {
             }
             if (data.msg.includes("活动不存在或已删除")) {
                 return {status: false, data: "活动不存在或已删除"};
+            }
+            if (data.msg.includes("无需报名活动")) {
+                return {status: true, data: "无需报名活动"};
             }
             return {status: false, data: "未知错误"};
         })
