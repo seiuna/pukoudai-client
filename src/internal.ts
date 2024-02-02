@@ -348,10 +348,10 @@ export function GroupEvent(authData: AuthData, assnId: StrNum, page: StrNum): Pr
  * 取消收藏或者收藏活动
  * @param authData
  * @param eventId 活动id
- * @param type fav|cancel
+ * @param type add|cancel
  * @constructor
  */
-export function FavEvent(authData: AuthData, eventId: StrNum, type: "fav" | "cancel"): Promise<any> {
+export function FavEvent(authData: AuthData, eventId: StrNum, type: "add" | "cancel"): Promise<any> {
     return CallAPI(authData, {
         endpoint: "/index.php?act=fav&mod=Event&app=api",
         login: true,
@@ -406,6 +406,23 @@ export function PersonalCenter(authData: AuthData): Promise<any> {
     return CallAPI(authData, {
         endpoint: `https://pocketuni.net/api/User/personalCenter?oauth_token=${authData.oauth_token}&oauth_token_secret=${authData.oauth_token_secret}`,
         login: true,
+        processResponse: (data) => {
+            return data;
+        },
+    });
+}
+
+//https://pocketuni.net/api/jifen/sign
+//day=&oauth_token_secret=9225d2824cf62098a829f8cbd19e3750&oauth_token=2bf8b3b14568e7efd9bbb8c36a4ccdff
+export function Sign(authData: AuthData): Promise<any> {
+    return CallAPI(authData, {
+        endpoint: `https://pocketuni.net/api/jifen/sign`,
+        login: true,
+        formData: (function () {
+            const formData = new FormData();
+            formData.append("day", "");
+            return formData;
+        })(),
         processResponse: (data) => {
             return data;
         },

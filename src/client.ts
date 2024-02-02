@@ -1,5 +1,5 @@
 import {ClientOption, StrNum} from "./entity/entities";
-import {Login, MSchoolInfo, MUserInfo, PersonalCenter, Qrcode} from "./internal";
+import {Login, MSchoolInfo, MUserInfo, PersonalCenter, Qrcode, Sign} from "./internal";
 import {getLogger} from "log4js";
 import {EventUser, SchoolInfo, Student} from "./entity/user";
 import * as Fs from "fs";
@@ -89,7 +89,7 @@ export interface Client {
     joinEvent(eventId: StrNum): Promise<DataResult<string>>;
 
     /** 收藏/取消收藏活动 */
-    favEvent(eventId: StrNum, action: "fav" | "cancel"): Promise<void>;
+    favEvent(eventId: StrNum, action: "add" | "cancel"): Promise<void>;
 
     /** 获取活动列表 生成器
      * 此函数获取的Event对象不完整 请使用getEvent获取完整对象
@@ -132,6 +132,11 @@ export interface Client {
      * @param eventId 活动id
      */
     eventUsers(eventId: StrNum): AsyncGenerator<Array<EventUser>>;
+
+    /**
+     * 每日签到
+     */
+    dailySign(): Promise<DataResult<any>>;
 }
 
 export class ClientImp implements Client {
@@ -274,7 +279,7 @@ export class ClientImp implements Client {
         return this.joinEventB(eventId);
     }
 
-    favEvent(eventId: StrNum, action: "fav" | "cancel"): Promise<void> {
+    favEvent(eventId: StrNum, action: "add" | "cancel"): Promise<void> {
         return this.favEventB(eventId, action);
 
     }
@@ -325,6 +330,11 @@ export class ClientImp implements Client {
             }
             await new Promise(r => setTimeout(r, 1000))
         }
+    }
+
+    async dailySign(): Promise<DataResult<any>> {
+        const data = await Sign(this.authData);
+        return {status: data.message === "签到成功", data: data.message};
     }
 
 

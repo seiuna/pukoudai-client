@@ -1,5 +1,4 @@
 import * as lodash from "lodash";
-import {withMapper} from "../utils";
 import {
     CancelEvent,
     EventDetail,
@@ -184,7 +183,7 @@ export class Event {
     constructor(data: any) {
         lodash.assign(this, data);
         if (!this.title) {
-            this.name = withMapper(() => this.title)
+            // this.name = withMapper(() => this.title)
         }
     }
 
@@ -301,7 +300,7 @@ export class Event {
         }
     }
 
-    static async favEvent(this: Client, eventId: StrNum, action: "fav" | "cancel") {
+    static async favEvent(this: Client, eventId: StrNum, action: "add" | "cancel") {
         return await FavEvent(this.authData, eventId, action);
     }
 
@@ -340,6 +339,10 @@ export class Event {
     /** 获取活动的用户信息 */
     getMemberList() {
         return this.c.eventUsers(this.id);
+    }
+
+    async fav(action: "add" | "cancel") {
+        return await this.c.favEvent(this.id, action);
     }
 
 }
