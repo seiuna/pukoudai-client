@@ -1,6 +1,6 @@
 import {EventInfo, loginType} from "./o/entity";
 import * as log4js from "log4js";
-import {baseDir, Client, ClientImp} from "./client";
+import { Client, ClientImp} from "./client";
 import {callSchoolList, schoolCache} from "./o/api";
 import {Qrcode} from "./utils"
 import * as Fs from "fs";
@@ -8,8 +8,7 @@ import {SchoolList} from "./internal";
 
 const {AutoComplete, prompt, Select, Input, Password} = require('enquirer');
 const logger = log4js.getLogger("COMMON");
-Fs.mkdirSync(baseDir + "/userdata", {recursive: true})
-Fs.mkdirSync(baseDir + "/cache", {recursive: true})
+
 /*
 不属于模块函数
 //  */
