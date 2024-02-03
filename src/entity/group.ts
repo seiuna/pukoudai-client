@@ -75,7 +75,7 @@ export class Group {
                 return group;
             }
         }
-        return GroupDetail(this.authData, sessid).then((data) => {
+        return GroupDetail(this, sessid).then((data) => {
             let group = new Group(data.content);
 
             if (option.cache) {
@@ -87,7 +87,7 @@ export class Group {
 
     static async* groupList(this: Client, page: number = -1) {
         let i = 1;
-        const data = (await GroupList(this.authData, i));
+        const data = (await GroupList(this, i));
 
         yield data.content.data.map((item: any) => {
             const v = new Group(item);
@@ -96,7 +96,7 @@ export class Group {
         });
         const count = page == -1 ? data.content.totalPages : page;
         for (i = 2; i <= count; i++) {
-            yield (await GroupList(this.authData, i)).content.data.map((item: any) => {
+            yield (await GroupList(this, i)).content.data.map((item: any) => {
                 const v = new Group(item);
                 v.c = this;
                 return v;
@@ -107,7 +107,7 @@ export class Group {
     static async* myGroupList(this: Client, page: number = -1) {
         let current = 1;
         while (current <= page || page == -1) {
-            const v = (await MyGroupList(this.authData, current)).content.map((e: any) => {
+            const v = (await MyGroupList(this, current)).content.map((e: any) => {
                 const g = new Group(e)
                 g.c = this;
                 return g;

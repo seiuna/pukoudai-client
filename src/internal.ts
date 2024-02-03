@@ -1,5 +1,5 @@
 import * as Log4js from "log4js";
-import {AuthData} from "./client";
+import {Client} from "./client";
 import {StrNum} from "./entity/entities";
 import {sign} from "./o/sign";
 
@@ -22,14 +22,14 @@ export async function SchoolList(): Promise<any> {
 
 /**
  * 使用账户密码登录
- * @param authData
+ * @param client
  * @param school
  * @param password
  * @param username
  * @constructor
  */
-export async function Login(authData: AuthData, school: StrNum, password: StrNum, username: StrNum): Promise<any> {
-    return CallAPI(authData, {
+export async function Login(client: Client, school: StrNum, password: StrNum, username: StrNum): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Sitelist&act=login",
         login: false,
         formData: (function () {
@@ -44,8 +44,8 @@ export async function Login(authData: AuthData, school: StrNum, password: StrNum
         processResponse: (data,response) => {
             //设置回cookie 以防万一
             const cookies = response.headers.get('Set-Cookie');
-            if (authData && cookies) {
-                authData.cookie = cookies;
+            if (client && cookies) {
+                client.authData.cookie = cookies;
             }
 
             return data;
@@ -53,22 +53,25 @@ export async function Login(authData: AuthData, school: StrNum, password: StrNum
     });
 }
 
-export async function CallAPI(authData: AuthData | undefined, options: {
+export async function CallAPI(client: Client | undefined, options: {
     endpoint: string,
     login: boolean,
     formData?: FormData,
-    additionalFormData?: (formData: FormData, authData: AuthData) => void,
+    additionalFormData?: (formData: FormData, client: Client) => void,
     processResponse?: (data: any,response:Response) => any,
 }): Promise<any> {
-    if ((authData?.oauth_token && authData?.oauth_token_secret) || !options.login || !authData) {
+    if(options.login&&!client?.authData.isLogin){
+        return Promise.reject("未登录");
+    }
+    if ((client?.authData.oauth_token && client?.authData.oauth_token_secret) || !options.login || !client) {
         const formData = options.formData || new FormData();
 
-        if (authData !== undefined && authData.sid !== undefined) {
-            formData.append("sid", authData.sid.toString());
-            formData.append('oauth_token', authData.oauth_token + "");
-            formData.append('oauth_token_secret', authData.oauth_token_secret + "");
+        if (client !== undefined && client.authData.sid !== undefined) {
+            formData.append("sid", client.authData.sid.toString());
+            formData.append('oauth_token', client.authData.oauth_token + "");
+            formData.append('oauth_token_secret', client.authData.oauth_token_secret + "");
             if (options.additionalFormData) {
-                options.additionalFormData(formData, authData);
+                options.additionalFormData(formData, client);
             }
         }
         formData.append('version', "7.10.0");
@@ -85,20 +88,19 @@ export async function CallAPI(authData: AuthData | undefined, options: {
                     ,"Referer":"https://pocketuni.net/",
                     "Origin":"https://pocketuni.net",
                     "Cookie":(()=>{
-                        return authData ? authData.cookie : "";
+                        return client ? client.authData.cookie : "";
                     })()
                 }
-
             });
             logger.debug(`API Response  => ${tid} ` + options.endpoint);
             let data=undefined;
             try {
                 if (response.status === 401) {
                     logger.error("认证失败");
+                    client?.emit("auth-failed",client)
                     return Promise.reject("认证失败")
                 }
                 data = await response.json();
-
                 if (options.processResponse) {
                     return options.processResponse(data,response);
                 }
@@ -119,23 +121,22 @@ export async function CallAPI(authData: AuthData | undefined, options: {
 
 /**
  * 使用二维码登录
- * @param authData
- * @param token
+ * @param client
  * @constructor
  */
-export function Qrcode(authData: AuthData): Promise<any> {
-    return CallAPI(authData, {
+export function Qrcode(client: Client): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Sitelist&act=pollingLogin&0",
         login: false,
         formData: (function () {
             const formData = new FormData();
-            formData.append("token", authData.qrcodeToken);
+            formData.append("token", client.authData.qrcodeToken);
             return formData;
         })(),
         processResponse: (data,response) => {
             const cookies = response.headers.get('Set-Cookie');
-            if (authData && cookies) {
-                authData.cookie = cookies;
+            if (client && cookies) {
+                client.authData.cookie = cookies;
             }
             return data;
         },
@@ -144,12 +145,12 @@ export function Qrcode(authData: AuthData): Promise<any> {
 
 /**
  * 获取活动详情
- * @param authData
+ * @param client
  * @param eventId
  * @constructor
  */
-export function EventDetail(authData: AuthData, eventId: string | number): Promise<any> {
-    return CallAPI(authData, {
+export function EventDetail(client: Client, eventId: string | number): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Event&act=queryActivityDetailById&",
         login: true,
         formData: (function () {
@@ -164,8 +165,8 @@ export function EventDetail(authData: AuthData, eventId: string | number): Promi
     });
 }
 
-export function EventList(authData: AuthData, status: number, page: number, count: number, keyword: string): Promise<any> {
-    return CallAPI(authData, {
+export function EventList(client: Client, status: number, page: number, count: number, keyword: string): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Event&act=newEventList&",
         login: true,
         formData: (function () {
@@ -182,8 +183,8 @@ export function EventList(authData: AuthData, status: number, page: number, coun
     });
 }
 
-export function CancelEvent(authData: AuthData, eventId: string | number): Promise<any> {
-    return CallAPI(authData, {
+export function CancelEvent(client: Client, eventId: string | number): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Event&act=cancelEvent",
         login: true,
         formData: (function () {
@@ -199,14 +200,14 @@ export function CancelEvent(authData: AuthData, eventId: string | number): Promi
 
 /**
  *  获取活动我的活动列表
- * @param authData
+ * @param client
  * @param page
  * @param status 2 进行中 1 未开始 0 全部 4 已完结  5 审核中
  * @param count
  * @constructor
  */
-export function MyEventList(authData: AuthData, page: number, status: number, count: number): Promise<any> {
-    return CallAPI(authData, {
+export function MyEventList(client: Client, page: number, status: number, count: number): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Event&act=myEventList",
         login: true,
         formData: (function () {
@@ -225,12 +226,12 @@ export function MyEventList(authData: AuthData, page: number, status: number, co
 
 /**
  * 加入一个活动
- * @param authData
+ * @param client
  * @param eventId
  * @constructor
  */
-export function JoinEvent(authData: AuthData, eventId: string | number): Promise<any> {
-    return CallAPI(authData, {
+export function JoinEvent(client: Client, eventId: string | number): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Event&act=join2&",
         login: true,
         formData: (function () {
@@ -238,7 +239,7 @@ export function JoinEvent(authData: AuthData, eventId: string | number): Promise
             const time = Math.floor(Date.now() / 1000);
             formData.append('id', eventId+"");
             formData.append('time', time.toString());
-            formData.append('sign', sign(`${authData.uid}`, eventId));
+            formData.append('sign', sign(`${client.authData.uid}`, eventId));
             return formData;
         })(),
         processResponse: (data) => {
@@ -247,8 +248,8 @@ export function JoinEvent(authData: AuthData, eventId: string | number): Promise
     });
 }
 
-export function MUserInfo(authData: AuthData): Promise<any> {
-    return CallAPI(authData, {
+export function MUserInfo(client: Client): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Pc&act=pcUser",
         login: true,
         processResponse: (data) => {
@@ -257,9 +258,9 @@ export function MUserInfo(authData: AuthData): Promise<any> {
     });
 }
 
-export function MSchoolInfo(authData: AuthData): Promise<any> {
-    return CallAPI(authData, {
-        endpoint: "/index.php?app=api&mod=Pc&act=pcHead&sid=" + authData.sid,
+export function MSchoolInfo(client: Client): Promise<any> {
+    return CallAPI(client, {
+        endpoint: "/index.php?app=api&mod=Pc&act=pcHead&sid=" + client.authData.sid,
         login: true,
         processResponse: (data) => {
             return data;
@@ -268,8 +269,8 @@ export function MSchoolInfo(authData: AuthData): Promise<any> {
 }
 
 //https://pocketuni.net/index.php?act=myEventCollect&mod=Collect&app=api
-export function MyFavEvent(authData: AuthData, count: number, page: number): Promise<any> {
-    return CallAPI(authData, {
+export function MyFavEvent(client: Client, count: number, page: number): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?act=myEventCollect&mod=Collect&app=api",
         login: true,
         formData: (function () {
@@ -284,8 +285,8 @@ export function MyFavEvent(authData: AuthData, count: number, page: number): Pro
     });
 }
 
-export function EventUsers(authData: AuthData, eventId: StrNum, page: number): Promise<any> {
-    return CallAPI(authData, {
+export function EventUsers(client: Client, eventId: StrNum, page: number): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?app=api&mod=Event&act=eventUser&",
         login: true,
         formData: (function () {
@@ -302,12 +303,12 @@ export function EventUsers(authData: AuthData, eventId: StrNum, page: number): P
 
 /**
  * 获取部落列表
- * @param authData
+ * @param client
  * @param page 每页最多10个
  * @constructor
  */
-export function GroupList(authData: AuthData, page: StrNum): Promise<any> {
-    return CallAPI(authData, {
+export function GroupList(client: Client, page: StrNum): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?act=groupList&mod=Group&app=api",
         login: true,
         formData: (function () {
@@ -323,13 +324,13 @@ export function GroupList(authData: AuthData, page: StrNum): Promise<any> {
 
 /**
  * 获取部落活动
- * @param authData
+ * @param client
  * @param assnId 部落id
  * @param page 每页最多10个
  * @constructor
  */
-export function GroupEvent(authData: AuthData, assnId: StrNum, page: StrNum): Promise<any> {
-    return CallAPI(authData, {
+export function GroupEvent(client: Client, assnId: StrNum, page: StrNum): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?act=groupList&mod=Group&app=api",
         login: true,
         formData: (function () {
@@ -346,13 +347,13 @@ export function GroupEvent(authData: AuthData, assnId: StrNum, page: StrNum): Pr
 
 /**
  * 取消收藏或者收藏活动
- * @param authData
+ * @param client
  * @param eventId 活动id
  * @param type add|cancel
  * @constructor
  */
-export function FavEvent(authData: AuthData, eventId: StrNum, type: "add" | "cancel"): Promise<any> {
-    return CallAPI(authData, {
+export function FavEvent(client: Client, eventId: StrNum, type: "add" | "cancel"): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?act=fav&mod=Event&app=api",
         login: true,
         formData: (function () {
@@ -369,13 +370,13 @@ export function FavEvent(authData: AuthData, eventId: StrNum, type: "add" | "can
 
 /**
  *
- * @param authData
+ * @param client
  * @param page 每页最多10个
  * @param action 默认 空 apply 为申请中
  * @constructor
  */
-export function MyGroupList(authData: AuthData, page: StrNum, action = ''): Promise<any> {
-    return CallAPI(authData, {
+export function MyGroupList(client: Client, page: StrNum, action = ''): Promise<any> {
+    return CallAPI(client, {
         endpoint: "/index.php?act=mygrouplist&mod=Group&app=api",
         login: true,
         formData: (function () {
@@ -390,8 +391,8 @@ export function MyGroupList(authData: AuthData, page: StrNum, action = ''): Prom
     });
 }
 
-export function GroupDetail(authData: AuthData, sessid: StrNum): Promise<any> {
-    return CallAPI(authData, {
+export function GroupDetail(client: Client, sessid: StrNum): Promise<any> {
+    return CallAPI(client, {
         endpoint: `/index.php?app=api&mod=Group&act=groupDetailPc&id=${sessid}`,
         login: true,
         processResponse: (data) => {
@@ -402,9 +403,9 @@ export function GroupDetail(authData: AuthData, sessid: StrNum): Promise<any> {
     });
 }
 
-export function PersonalCenter(authData: AuthData): Promise<any> {
-    return CallAPI(authData, {
-        endpoint: `https://pocketuni.net/api/User/personalCenter?oauth_token=${authData.oauth_token}&oauth_token_secret=${authData.oauth_token_secret}`,
+export function PersonalCenter(client: Client): Promise<any> {
+    return CallAPI(client, {
+        endpoint: `https://pocketuni.net/api/User/personalCenter?oauth_token=${client.authData.oauth_token}&oauth_token_secret=${client.authData.oauth_token_secret}`,
         login: true,
         processResponse: (data) => {
             return data;
@@ -414,8 +415,8 @@ export function PersonalCenter(authData: AuthData): Promise<any> {
 
 //https://pocketuni.net/api/jifen/sign
 //day=&oauth_token_secret=9225d2824cf62098a829f8cbd19e3750&oauth_token=2bf8b3b14568e7efd9bbb8c36a4ccdff
-export function Sign(authData: AuthData): Promise<any> {
-    return CallAPI(authData, {
+export function Sign(client: Client): Promise<any> {
+    return CallAPI(client, {
         endpoint: `https://pocketuni.net/api/jifen/sign`,
         login: true,
         formData: (function () {

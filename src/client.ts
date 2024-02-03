@@ -6,8 +6,8 @@ import * as Fs from "fs";
 import {callSchoolList} from "./o/api";
 import {Group} from "./entity/group";
 import {Event} from "./entity/event";
+import {EventEmitter} from "node:events";
 
-const logger = getLogger("CLIENT");
 export let baseDir = process.cwd() + "/pu-client";
 
 Fs.mkdirSync(baseDir + "/userdata", {recursive: true})
@@ -38,9 +38,11 @@ export interface AuthData {
     password: StrNum;
     /** 是否正在登录 */
     processing: boolean;
+    /** 是否已经登陆 */
+    isLogin: boolean;
 }
 
-export interface Client {
+export interface Client extends EventEmitter{
     store: any;
     /** 认证信息 */
     authData: AuthData
@@ -51,6 +53,8 @@ export interface Client {
     // on(event: "auth-failed", listener: (client: Client) => void): this;
     /** 是否登录中 */
     isLogging(): boolean;
+    /** 是否登录 */
+    isLogin(): boolean;
 
     /** 二维码登录 */
     login(qrcodeToken: string): Promise<this>;
@@ -137,9 +141,36 @@ export interface Client {
      * 每日签到
      */
     dailySign(): Promise<DataResult<any>>;
+
+    /**
+     * 当出现认证失败 一般因为密码修改 手机端重新登陆导致
+     * @param event
+     * @param listener
+     */
+    on(event: "auth-failed", listener: (client: Client) => void): this;
+    once(event: "auth-failed", listener: (client: Client) => void): this;
+    off(event: "auth-failed", listener: (client: Client) => void): this;
+
+    /**
+     * 当登录失败
+     * @param event
+     * @param listener
+     */
+    on(event: "login-failed", listener: (client: Client,message:string) => void): this;
+    once(event: "login-failed", listener: (client: Client,message:string) => void): this;
+    off(event: "login-failed", listener: (client: Client,message:string) => void): this;
+
+    /**
+     * 当登录成功
+     * @param event
+     * @param listener
+     */
+    on(event: "login", listener: (client: Client,message:string) => void): this;
+    once(event: "login", listener: (client: Client,message:string) => void): this;
+    off(event: "login", listener: (client: Client,message:string) => void): this;
 }
 
-export class ClientImp implements Client {
+export class ClientImp extends EventEmitter implements Client {
     store: any = {}
     authData: AuthData = {
         oauth_token: "",
@@ -152,7 +183,8 @@ export class ClientImp implements Client {
         schoolCode: "",
         username: "",
         password: "",
-        processing: false
+        processing: false,
+        isLogin:false
     }
     options: ClientOption;
     schoolinfo: SchoolInfo;
@@ -170,7 +202,9 @@ export class ClientImp implements Client {
     readonly groupListB = Group.groupList.bind(this);
     readonly eventUsersB = Event.eventUsers.bind(this);
 
-
+    constructor() {
+        super();
+    }
     async login(username?: StrNum, password?: StrNum, school?: string, qrcodeToken?: string): Promise<this> {
         if (this.authData.processing) {
             return Promise.reject("正在登录中");
@@ -182,7 +216,7 @@ export class ClientImp implements Client {
             this.authData.schoolCode = school;
             this.authData.username = username;
             this.authData.password = password;
-            rspData = await Login(this.authData, school, password, username).then((v) => {
+            rspData = await Login(this, school, password, username).then((v) => {
                 return v
             })
         } else {
@@ -201,8 +235,12 @@ export class ClientImp implements Client {
             this.authData.oauth_token = rspData.content.oauth_token;
             this.authData.oauth_token_secret = rspData.content.oauth_token_secret;
             this.count = 30;
+            this.authData.isLogin = true;
+            this.emit("login",this,rspData.message)
         } else {
             this.options.reLogin = false
+            this.authData.isLogin = false;
+            this.emit("login-failed",this,rspData.message)
             return Promise.reject(rspData.message)
         }
         this.authData.processing = false
@@ -218,19 +256,22 @@ export class ClientImp implements Client {
         }
         return await this.login(this.authData.username, this.authData.password, this.authData.schoolCode + "");
     }
+    isLogin(): boolean {
+        return this.authData.isLogin
+    }
 
     async updateInfo(): Promise<void> {
         try {
-            await MUserInfo(this.authData).then((data: any) => {
+            await MUserInfo(this).then((data: any) => {
                 this.userinfo = new Student(Object.assign(data.content, this.userinfo));
                 this.authData.uid = this.userinfo.uid + "";
                 this.authData.sid = this.userinfo.sid + "";
                 this.authData.sno = this.userinfo.sno + "";
             })
-            await MSchoolInfo(this.authData).then((data: any) => {
+            await MSchoolInfo(this).then((data: any) => {
                 this.schoolinfo = data.content.school
             })
-            await PersonalCenter(this.authData).then((data: any) => {
+            await PersonalCenter(this).then((data: any) => {
                 this.userinfo = new Student(Object.assign(data.content.user_info, this.userinfo));
             })
         }catch (e){
@@ -324,7 +365,7 @@ export class ClientImp implements Client {
             if (this.count < 0) {
                 return Promise.reject("二维码超时")
             }
-            const data = await Qrcode(this.authData);
+            const data = await Qrcode(this);
             if (data.message === "success") {
                 return data;
             }
@@ -333,7 +374,7 @@ export class ClientImp implements Client {
     }
 
     async dailySign(): Promise<DataResult<any>> {
-        const data = await Sign(this.authData);
+        const data = await Sign(this);
         return {status: data.message === "签到成功", data: data.message};
     }
 
@@ -361,10 +402,6 @@ export async function createClientByQrcode(qrcodeToken: string, option: ClientOp
     return await client.login(qrcodeToken);
 }
 
-export interface CacheData {
-    time: number;
-    data: any;
-}
 
 export interface DataResult<T> {
 
@@ -384,7 +421,6 @@ export const default_Option: Option = {
 }
 export const statusMap: any = {
     // 2 进行中 1 未开始 0 全部 4 已完结  5 审核中
-
     进行中: 2,
     未开始: 1,
     全部: 0,

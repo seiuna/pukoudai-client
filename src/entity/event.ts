@@ -180,6 +180,11 @@ export class Event {
     input_list: any[];
     show_event_photo_button: string;
 
+
+    getName(){
+        return this.title?this.title:this.name
+    }
+
     constructor(data: any) {
         lodash.assign(this, data);
         if (!this.title) {
@@ -194,7 +199,7 @@ export class Event {
                 return event;
             }
         }
-        return EventDetail(this.authData, sessid).then((data) => {
+        return EventDetail(this, sessid).then((data) => {
             let event = new Event(data.content);
             event.c = this;
             if (option.cache) {
@@ -209,7 +214,7 @@ export class Event {
             return {status: false, data: "操作频繁"};
         }
         this.store.joinDelay = Date.now() + 1000 * 3;
-        return await JoinEvent(this.authData, eventId).then((data) => {
+        return await JoinEvent(this, eventId).then((data) => {
 
             if (data.msg.includes("记得准时签到哦~")) {
                 return {status: true, data: "报名成功"};
@@ -234,7 +239,7 @@ export class Event {
     }
 
     static async cancelEvent(this: Client, eventId: StrNum) {
-        return await CancelEvent(this.authData, eventId).then((data) => {
+        return await CancelEvent(this, eventId).then((data) => {
             if (data.msg.includes("用户不存在")) {
                 return {status: false, data: '未加入该活动'};
             }
@@ -247,7 +252,7 @@ export class Event {
         let current = 1;
         while (current <= page || page == -1) {
 
-            const v = (await EventList(this.authData, status, current, count, keyword)).content.map((e: any) => {
+            const v = (await EventList(this, status, current, count, keyword)).content.map((e: any) => {
                 const event = new Event(e)
                 event.c = this;
                 return event;
@@ -262,7 +267,7 @@ export class Event {
         const status = statusMap[type];
         let current = 1;
         while (current <= page || page == -1) {
-            const v = (await MyEventList(this.authData, current, status, count)).map((e: any) => {
+            const v = (await MyEventList(this, current, status, count)).map((e: any) => {
                 const aa = new Event(e)
                 aa.c = this;
                 return aa;
@@ -277,7 +282,7 @@ export class Event {
     static async* myFavEventList(this: Client, page = -1, count: number = 10, option: Option | undefined): AsyncGenerator<Array<Event>> {
         let current = 1;
         while (current <= page || page == -1) {
-            const v = (await MyFavEvent(this.authData, count, current)).map((e: any) => {
+            const v = (await MyFavEvent(this, count, current)).map((e: any) => {
                 const event = new Event(e)
                 event.c = this;
                 return event;
@@ -291,7 +296,7 @@ export class Event {
     static async* groupEventList(this: Client, sessid: number, page = -1, count: number = 10, option: Option | undefined): AsyncGenerator<Array<Event>> {
         let current = 1;
         while (current <= page || page == -1) {
-            const v = (await GroupEvent(this.authData, sessid, current)).content.map((e: any) => {
+            const v = (await GroupEvent(this, sessid, current)).content.map((e: any) => {
                 const event = new Event(e)
                 event.c = this;
                 return event;
@@ -303,14 +308,14 @@ export class Event {
     }
 
     static async favEvent(this: Client, eventId: StrNum, action: "add" | "cancel") {
-        return await FavEvent(this.authData, eventId, action);
+        return await FavEvent(this, eventId, action);
     }
 
     static async* eventUsers(this: Client, eventId: StrNum): AsyncGenerator<Array<EventUser>> {
 
         let current = 1;
         while (true) {
-            const data = (await EventUsers(this.authData, eventId, current)).content.map((e: any) => {
+            const data = (await EventUsers(this, eventId, current)).content.map((e: any) => {
                 const user = new EventUser(e)
                 user.c = this;
                 return user;
