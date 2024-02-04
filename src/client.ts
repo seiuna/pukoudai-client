@@ -15,7 +15,6 @@ Fs.mkdirSync(baseDir + "/cache", {recursive: true})
 
 /** 认证信息 */
 export interface AuthData {
-
     /** 用户token */
     oauth_token: string;
     /** 用户token */
@@ -40,6 +39,9 @@ export interface AuthData {
     processing: boolean;
     /** 是否已经登陆 */
     isLogin: boolean;
+    /** 最后一次登陆失败的原因 */
+    failedMessage:string
+
 }
 
 export interface Client extends EventEmitter{
@@ -184,7 +186,8 @@ export class ClientImp extends EventEmitter implements Client {
         username: "",
         password: "",
         processing: false,
-        isLogin:false
+        isLogin:false,
+        failedMessage:'未登录'
     }
     options: ClientOption;
     schoolinfo: SchoolInfo;
