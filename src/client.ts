@@ -243,6 +243,7 @@ export class ClientImp extends EventEmitter implements Client {
         } else {
             this.options.reLogin = false
             this.authData.isLogin = false;
+            this.authData.failedMessage=rspData.message
             this.emit("login-failed",this,rspData.message)
             return Promise.reject(rspData.message)
         }
