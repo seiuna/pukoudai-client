@@ -6,13 +6,8 @@
   "module": "./dist/index.mjs",
   "scripts": {
     "app": "ts-node src/app.ts",
-    "pub": "npm publish",
     "test": "ts-node src/test/test.ts",
-    "build": "tsup",
-    "transfer": "ts-node src/app/transfer.ts",
-    "clicker": "ts-node src/app/clicker.ts",
-    "monitor": "ts-node src/app/monitor.ts",
-    "school": "ts-node src/app/getSchool.ts"
+    "build": "tsup"
   },
   "files": [
     "dist"
@@ -28,9 +23,7 @@
     "lodash": "^4.17.21",
     "log4js": "^6.9.1",
     "node-schedule": "^2.1.1",
-    "open": "^8.4.2",
-    "qrcode": "^1.5.3",
-    "qrcode-reader": "^1.0.4"
+    "qrcode": "^1.5.3"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.202",
