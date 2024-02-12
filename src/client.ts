@@ -189,7 +189,7 @@ export class ClientImp extends EventEmitter implements Client {
         isLogin:false,
         failedMessage:'未登录'
     }
-    options: ClientOption;
+    options: ClientOption= defaultOption;
     schoolinfo: SchoolInfo;
     userinfo: Student;
     readonly cacheMap: Map<string, any> = new Map<string, any>();
