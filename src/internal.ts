@@ -20,38 +20,7 @@ export async function SchoolList(): Promise<any> {
 
 }
 
-/**
- * 使用账户密码登录
- * @param client
- * @param school
- * @param password
- * @param username
- * @constructor
- */
-export async function Login(client: Client, school: StrNum, password: StrNum, username: StrNum): Promise<any> {
-    return CallAPI(client, {
-        endpoint: "/index.php?app=api&mod=Sitelist&act=login",
-        login: false,
-        formData: (function () {
-            const formData = new FormData();
-            formData.append("school", school.toString());
-            formData.append("password", password.toString());
-            formData.append("usernum", username.toString());
-            formData.append("type", "pc");
-            formData.append("email", username.toString() + school.toString());
-            return formData;
-        })(),
-        processResponse: (data,response) => {
-            //设置回cookie 以防万一
-            const cookies = response.headers.get('Set-Cookie');
-            if (client && cookies) {
-                client.authData.cookie = cookies;
-            }
 
-            return data;
-        },
-    });
-}
 
 export async function CallAPI(client: Client | undefined, options: {
     endpoint: string,
@@ -117,6 +86,39 @@ export async function CallAPI(client: Client | undefined, options: {
         logger.error("API请求失败: " + "未登录");
         return Promise.reject("未登录");
     }
+}
+
+/**
+ * 使用账户密码登录
+ * @param client
+ * @param school
+ * @param password
+ * @param username
+ * @constructor
+ */
+export async function Login(client: Client, school: StrNum, password: StrNum, username: StrNum): Promise<any> {
+    return CallAPI(client, {
+        endpoint: "/index.php?app=api&mod=Sitelist&act=login",
+        login: false,
+        formData: (function () {
+            const formData = new FormData();
+            formData.append("school", school.toString());
+            formData.append("password", password.toString());
+            formData.append("usernum", username.toString());
+            formData.append("type", "pc");
+            formData.append("email", username.toString() + school.toString());
+            return formData;
+        })(),
+        processResponse: (data,response) => {
+            //设置回cookie 以防万一
+            const cookies = response.headers.get('Set-Cookie');
+            if (client && cookies) {
+                client.authData.cookie = cookies;
+            }
+
+            return data;
+        },
+    });
 }
 
 /**
