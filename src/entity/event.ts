@@ -54,8 +54,8 @@ export class Event {
     /** 通用属性 */
     is_need_sign_out: string;
     is_school_event: string;
-    credit: string;
-    score: string;
+    credit: number;
+    score: number;
     //0 已结束 1 未开始
     status: number = 0;
     free_attend: string;
