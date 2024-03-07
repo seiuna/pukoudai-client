@@ -77,20 +77,4 @@ export async function check(client: Client, eventId: StrNum, type: string): Prom
 // token.put("type", type);
 // Client.post(this.mContext, "Event", "signOnline", token, this.handler);
 
-export async function check1(client: Client, eventId: StrNum, userId: StrNum, type: 1 | 0): Promise<any> {
-    return CallAPI(client, {
-        endpoint: "https://pocketuni.net/index.php?app=api&mod=Event&act=signOnline",
-        login: true,
-        formData: (function () {
-            const time = Math.floor(Date.now());
-            const formData = new FormData();
-            formData.append("actiId", eventId.toString());
-            formData.append("userId", userId.toString());
-            formData.append("type", type.toString());
-            return formData;
-        })(),
-        processResponse: (data, response) => {
-            return data;
-        },
-    });
-}
+// 1 签到 2 签退

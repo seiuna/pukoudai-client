@@ -1,6 +1,5 @@
 import {ClientOption, StrNum} from "./entity/entities";
-import {Login, MSchoolInfo, MUserInfo, PersonalCenter, Qrcode, Sign} from "./internal";
-import {getLogger} from "log4js";
+import {Login, MSchoolInfo, MUserInfo, PersonalCenter, Qrcode, Sign, SignInAndOut} from "./internal";
 import {EventUser, SchoolInfo, Student} from "./entity/user";
 import * as Fs from "fs";
 import {callSchoolList} from "./o/api";
@@ -58,11 +57,16 @@ export interface Client extends EventEmitter{
     /** 是否登录 */
     isLogin(): boolean;
 
-    /** 二维码登录 */
+    /** 二维码登录
+     * @Deprecated
+     */
     login(qrcodeToken: string): Promise<this>;
 
-    /** 账号密码登录 */
+    /** 账号密码登录
+     * @Deprecated
+     */
     login(username?: StrNum, password?: StrNum, school?: string): Promise<this>;
+
 
     /** 测试token是否有效 */
     test(): Promise<void>;
@@ -170,6 +174,9 @@ export interface Client extends EventEmitter{
     on(event: "login", listener: (client: Client,message:string) => void): this;
     once(event: "login", listener: (client: Client,message:string) => void): this;
     off(event: "login", listener: (client: Client,message:string) => void): this;
+
+
+    signEvent(id: string, uid: string, type: 1 | 2): Promise<Promise<any>>;
 }
 
 export class ClientImp extends EventEmitter implements Client {
@@ -381,6 +388,11 @@ export class ClientImp extends EventEmitter implements Client {
         const data = await Sign(this);
         return {status: data.message === "签到成功", data: data.message};
     }
+
+    async signEvent(id: string, uid: string, type: 1 | 2): Promise<Promise<any>> {
+        return SignInAndOut(this, id, uid, type);
+    }
+
 
 
 }

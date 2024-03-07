@@ -352,4 +352,13 @@ export class Event {
         return await this.c.favEvent(this.id, action);
     }
 
+    /**
+     * 签到
+     * 1 签到 2 签退
+     * @param type
+     */
+    async signEvent(type: 1 | 2) {
+        return await this.c.signEvent(this.id, this.c.authData.uid, type);
+    }
+
 }

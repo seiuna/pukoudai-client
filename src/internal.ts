@@ -20,6 +20,23 @@ export async function SchoolList(): Promise<any> {
 
 }
 
+export async function SignInAndOut(client: Client, eventId: StrNum, userId: StrNum, type: 1 | 2): Promise<any> {
+    return CallAPI(client, {
+        endpoint: "https://pocketuni.net/index.php?app=api&mod=Event&act=signOnline",
+        login: true,
+        formData: (function () {
+            const time = Math.floor(Date.now());
+            const formData = new FormData();
+            formData.append("actiId", eventId.toString());
+            formData.append("userId", userId.toString());
+            formData.append("type", type.toString());
+            return formData;
+        })(),
+        processResponse: (data, response) => {
+            return data;
+        },
+    });
+}
 
 
 export async function CallAPI(client: Client | undefined, options: {

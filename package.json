@@ -1,12 +1,13 @@
 {
   "name": "pu-client",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "description": "pocket universe client",
   "main": "dist/index.js",
   "module": "./dist/index.mjs",
   "scripts": {
     "app": "ts-node src/app.ts",
     "test": "ts-node src/test/test.ts",
+    "testnewapi": "ts-node src/newApi/test.ts",
     "build": "tsup"
   },
   "files": [

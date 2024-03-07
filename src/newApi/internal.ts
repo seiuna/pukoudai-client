@@ -1,3 +1,62 @@
+import {Client} from "../client";
+
+const ROOT: string = "https://apis.pocketuni.net"
+
+export async function CallAPI(client: Client | undefined, options: {
+    endpoint: string,
+    login: boolean,
+    method?: string,
+    data?: any,
+    processResponse?: (data: any, response: Response) => any,
+}): Promise<any> {
+    try {
+        const response = await fetch((options.endpoint.startsWith("https") ? "" : ROOT) + options.endpoint, {
+            body: JSON.stringify(options.data),
+            method: options.method ? options.method : "POST",
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0",
+                "Content-type": "application/json",
+                "Cookie": (() => {
+                    return client ? client.authData.cookie : "";
+                })()
+            }
+        });
+
+        let data = undefined;
+        try {
+            if (response.status === 401) {
+                client?.emit("auth-failed", client)
+                return Promise.reject("认证失败")
+            }
+            data = await response.json();
+            if (options.processResponse) {
+                return options.processResponse(data, response);
+            }
+        } catch (err) {
+
+            return Promise.reject("错误的返回")
+        }
+        return data;
+    } catch (error) {
+
+        return Promise.reject("API请求失败");
+    }
+
+}
+
+export async function SchoolList(): Promise<any> {
+    return CallAPI(undefined, {
+        endpoint: "https://pocketuni.net/index.php?app=api&mod=Sitelist&act=getSchools",
+        login: false,
+        processResponse: (data) => {
+            return data;
+        },
+    });
+
+}
+
+
+
 // 登录 https://apis.pocketuni.net/uc/user/login  POST JSON
 // {userName: "123", password: "312321312", sid: 208754666766336, device: "pc"}
 // {"code":100001,"message":"登录失败，用户名或者密码错误","data":{}} 登陆失败
@@ -199,3 +258,14 @@
 //         }
 //     }
 // }
+
+// 签到 https://apis.pocketuni.net/apis/activity/signIn POST JSON
+// {"activityId":209737782263808,"mid":208775881492301}
+// {
+//     "code": 9405,
+//     "message": "当前用户未报名该活动",
+//     "data": {}
+// }
+//
+// 加入活动 https://apis.pocketuni.net/apis/activity/join POST JSON
+// {"activityId":209737782263808}
