@@ -1,4 +1,4 @@
-import {Client} from "../client";
+import {Client} from "./newclient";
 
 const ROOT: string = "https://apis.pocketuni.net"
 
@@ -17,7 +17,7 @@ export async function CallAPI(client: Client | undefined, options: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0",
                 "Content-type": "application/json",
                 "Cookie": (() => {
-                    return client ? client.authData.cookie : "";
+                    return client ? client.cookie : "";
                 })()
             }
         });
@@ -128,7 +128,9 @@ export async function SchoolList(): Promise<any> {
 //     }
 // }
 // Bearer 2801d14300163e01047b:208754666766336   token:学校id
-
+export async function Login(username: string, password: string, school: string) {
+    return CallAPI
+}
 
 // 活动列表 https://apis.pocketuni.net/apis/activity/list POST JSON
 // {sort: 0, page: 1, limit: 10}

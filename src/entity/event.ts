@@ -234,7 +234,10 @@ export class Event {
             if (data.msg.includes("无需报名活动")) {
                 return {status: true, data: "无需报名活动"};
             }
-            return {status: false, data: "未知错误"};
+            if (data.msg.includes("报名人数已达限制，无法报名哦~")) {
+                return {status: false, data: "报名人数已达限制，无法报名哦~"};
+            }
+            return {status: false, data: data.msg};
         })
     }
 

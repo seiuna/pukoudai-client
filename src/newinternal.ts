@@ -71,6 +71,25 @@ export async function check(client: Client, eventId: StrNum, type: string): Prom
     });
 }
 
+export async function check123(client: Client, eventId: StrNum, type: string): Promise<any> {
+    return CallAPI(client, {
+        endpoint: "https://pocketuni.net/index.php?app=api&mod=Event&act=addEvent",
+        login: true,
+        formData: (function () {
+            const time = Math.floor(Date.now());
+            const formData = new FormData();
+            formData.append("code", eventId.toString());
+            formData.append("allow", "false")
+            return formData;
+        })(),
+        processResponse: (data, response) => {
+
+
+            return data;
+        },
+    });
+}
+
 // RequestParams token = PuApp.get().getToken();
 // token.put("actiId", actiId);
 // token.put("userId", userId);
