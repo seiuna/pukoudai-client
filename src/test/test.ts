@@ -76,7 +76,7 @@ log4js.configure({
         const type = 1;
         const id = "";
 
-        console.log(await client.signEvent("5771777", "20871749", type))       // console.log("=========17===========================")
+        console.log(await client.signEvent("5775906", "20871749", type))       // console.log("=========17===========================")
         console.log(await client.signEvent("5771777", "20871755", type))       // console.log("=========17===========================")
         console.log(await client.signEvent("5771777", "20871905", type))        // console.log("====================================")
         console.log(await client.signEvent("5771777", "20871751", type))        // console.log("====================================")
