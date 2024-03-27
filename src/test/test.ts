@@ -73,7 +73,7 @@ log4js.configure({
         // console.log(await   client.signEvent("5718093",client.authData.uid,2) );
         // console.log(await    gpsSignInAndOut(client,"5705836","signOut") )        // console.log("====================================")
         // console.log(await    check1(client,"5704930","20871749",1) )        // console.log("====================================")
-        const type = 1;
+        const type = 2;
         const id = "";
 
         console.log(await client.signEvent("5775906", "20871749", type))       // console.log("=========17===========================")
