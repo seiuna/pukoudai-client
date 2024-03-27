@@ -107,7 +107,11 @@ export class Group {
     static async* myGroupList(this: Client, page: number = -1) {
         let current = 1;
         while (current <= page || page == -1) {
-            const v = (await MyGroupList(this, current)).content.map((e: any) => {
+            const t = (await MyGroupList(this, current));
+            if (!t) {
+                break;
+            }
+            const v = t.content.map((e: any) => {
                 const g = new Group(e)
                 g.c = this;
                 return g;

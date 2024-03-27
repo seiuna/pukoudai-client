@@ -20,7 +20,7 @@ export async function SchoolList(): Promise<any> {
 
 }
 
-export async function SignInAndOut(client: Client, eventId: StrNum, userId: StrNum, type: 1 | 2): Promise<any> {
+export async function SignInAndOut(client: Client | undefined, eventId: StrNum, userId: StrNum, type: 1 | 2): Promise<any> {
     return CallAPI(client, {
         endpoint: "https://pocketuni.net/index.php?app=api&mod=Event&act=signOnline",
         login: true,
